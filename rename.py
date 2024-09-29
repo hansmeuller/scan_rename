@@ -3,9 +3,22 @@ import os
 from PIL import Image
 import pytesseract
 import re
+from datetime import datetime, timedelta
+
 
 # scant im verzeichnis, in dem das Programm liegt
 scans_folder = os.path.dirname(os.path.realpath(__file__))
+
+
+# Pfad Logdatei
+desktop_path = os.path.join(os.path.expanduser("~"), "Desktop")
+log_file_path = os.path.join(desktop_path, "Logeinträge_ScanRename.txt")
+
+def check_and_create_log_file():
+    """Logdatei erstellt falls notwendig"""
+    if not os.path.exists(log_file_path):
+        with open(log_file_path, "w") as log_file:
+            log_file.write(f"Logdatei erstellt am {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
 
 
 def extract_text_from_image(image_path):
