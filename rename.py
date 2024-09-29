@@ -6,7 +6,7 @@ import re
 from datetime import datetime, timedelta
 
 
-# scant im verzeichnis, in dem das Programm liegt
+# scant im verzeichnis
 scans_folder = os.path.dirname(os.path.realpath(__file__))
 
 
@@ -29,6 +29,28 @@ def extract_text_from_image(image_path):
     except Exception as e:
         print(f"Erreur de traitement de l'image {image_path}: {e}")
         return ""
+
+        # Nur Einträge behalten, die jünger als 7 Tage sind
+        one_week_ago = datetime.now() - timedelta(days=7)
+        with open(log_file_path, "w") as log_file:
+            for line in lines:
+                # Extrahiere das Datum aus dem Zeitstempel (angenommen Format: YYYY-MM-DD HH:MM:SS)
+                try:
+                    log_time = datetime.strptime(line.split(" - ")[0], "%Y-%m-%d %H:%M:%S")
+                    if log_time > one_week_ago:
+                        log_file.write(line)  # Nur Einträge behalten, die neuer als eine Woche sind
+                except (ValueError, IndexError):
+                    log_file.write(line)  # Falls das Format nicht stimmt, trotzdem die Zeile behalten
+
+
+def log_message(message):
+    """Schreibt in Logdatei mit Zeitstempel."""
+    check_and_create_log_file()  # Prüfen, ob die Logdatei existiert
+    clean_old_log_entries()  # Alte Einträge bereinigen
+
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    with open(log_file_path, "a") as log_file:
+        log_file.write(f"{timestamp} - {message}\n")
 
 
 def get_subject_from_text(text):
@@ -94,7 +116,7 @@ def main():
 if __name__ == "__main__":
     while True:
         try:
-            main()  # starte die Hauptverarbeitung
+            main()  # starte Hauptverarbeitung
         except Exception as e:
             print(f"Fehler im Hauptprogramm: {e}")
             time.sleep(5)  # warte restart
