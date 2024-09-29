@@ -1,6 +1,7 @@
+import time
+import os
 from PIL import Image
 import pytesseract
-import os
 import re
 
 # scant im verzeichnis, in dem das Programm liegt
@@ -18,17 +19,17 @@ def extract_text_from_image(image_path):
 
 
 def get_subject_from_text(text):
-    """suche nach fettgedrucktem oder Begriffen"""
+    """suche fettgedrucktes"""
     subject = None
     lines = text.split('\n')
 
-    # Nur das erste Drittel analysieren
+    # nur erstes Drittel
     for line in lines[:15]:
-        if line.isupper():  # Großbuchstaben simulieren fettgedruckt
+        if line.isupper():  # Großbuchstaben simulieren
             subject = line.strip()
             break
 
-    # falls kein Betreff
+    # Falls kein Betreff
     if not subject:
         for line in lines:
             if "Aktenzeichen" in line or "Geschäftszeichen" in line:
@@ -43,7 +44,7 @@ def rename_file(old_path, new_name):
     file_extension = old_file_name.split('.')[-1]
     new_file_path = os.path.join(directory, f"{new_name}.{file_extension}")
 
-    if not os.path.exists(new_file_path):  # Vermeidung von Konflikten mit bestehenden Dateinamen
+    if not os.path.exists(new_file_path):  # vermeidung Konflikte
         os.rename(old_path, new_file_path)
         print(f"Datei umbenannt von {old_file_name} zu {new_name}.{file_extension}")
     else:
@@ -67,6 +68,20 @@ def process_scan_files(scans_folder):
                 print(f"Kein Betreff gefunden für {file_name}.")
 
 
+def main():
+    """hier wird ausgeführt"""
+    try:
+        process_scan_files(scans_folder)
+    except Exception as e:
+        print(f"Programm abgestürzt: {e}")
+        time.sleep(5)  # warten
+        main()  # Programm neu starten
+
+
 if __name__ == "__main__":
-    # starte die Verarbeitung
-    process_scan_files(scans_folder)
+    while True:
+        try:
+            main()  # starte die Hauptverarbeitung
+        except Exception as e:
+            print(f"Fehler im Hauptprogramm: {e}")
+            time.sleep(5)  # warte restart
