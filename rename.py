@@ -12,12 +12,14 @@ scans_folder = os.path.dirname(os.path.realpath(__file__))
 desktop_path = os.path.join(os.path.expanduser("~"), "Desktop")
 log_file_path = os.path.join(desktop_path, "Logeinträge_ScanRename.txt")
 
+
 # Logdatei prüfen/create
 def check_and_create_log_file():
     """create if not exist"""
     if not os.path.exists(log_file_path):
         with open(log_file_path, "w") as log_file:
             log_file.write(f"Logdatei erstellt am {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+
 
 # Einträge mit timestamp
 def log_message(message):
@@ -28,6 +30,7 @@ def log_message(message):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     with open(log_file_path, "a") as log_file:
         log_file.write(f"{timestamp} - {message}\n")
+
 
 # Nur Einträge -=woche
 def clean_old_log_entries():
@@ -47,6 +50,7 @@ def clean_old_log_entries():
                 except (ValueError, IndexError):
                     log_file.write(line)
 
+
 def extract_text_from_image(image_path):
     """extrahiere aus Bild"""
     try:
@@ -56,42 +60,68 @@ def extract_text_from_image(image_path):
         log_message(f"Erreur de traitement de l'image {image_path}: {e}")
         return ""
 
+
 # Apple Autostart
-def create_launch_agent():
-    """create if not exist"""
+def check_and_update_launch_agent():
+    """Prüft LaunchAgent-Pfad und aktualisiert, falls nötig."""
     launch_agent_path = os.path.expanduser("~/Library/LaunchAgents/com.meinprogramm.scanrenamer.plist")
 
-    if not os.path.exists(launch_agent_path):
-        program_path = os.path.realpath(__file__)
+    # Dynamischer Pfad
+    current_program_path = os.path.realpath(__file__)
 
-        plist_content = f"""<?xml version="1.0" encoding="UTF-8"?>
-        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-        <plist version="1.0">
-        <dict>
-            <key>Label</key>
-            <string>com.meinprogramm.scanrenamer</string>
+    # check if exist
+    if os.path.exists(launch_agent_path):
+        # Inhalt lesen
+        with open(launch_agent_path, "r") as plist_file:
+            content = plist_file.read()
 
-            <key>ProgramArguments</key>
-            <array>
-                <string>/usr/bin/python3</string>  <!-- Interpreter hinzufügen -->
-                <string>{program_path}</string>
-            </array>
-
-            <key>RunAtLoad</key>
-            <true/>
-
-            <key>KeepAlive</key>
-            <true/>
-        </dict>
-        </plist>"""
-
-        with open(launch_agent_path, "w") as plist_file:
-            plist_file.write(plist_content)
-
-        os.system(f"launchctl load {launch_agent_path}")
-        log_message("LaunchAgent wurde erstellt und geladen.")
+        # Pfad == LaunchAgent?
+        if current_program_path in content:
+            log_message(f"LaunchAgent ist aktuell. Programm wird von {current_program_path} ausgeführt.")
+        else:
+            log_message("LaunchAgent veraltet. Wird aktualisiert.")
+            create_launch_agent(current_program_path)
     else:
-        log_message("LaunchAgent existiert bereits.")
+        log_message("LaunchAgent existiert nicht. Erstellt neuen LaunchAgent.")
+        create_launch_agent(current_program_path)
+
+
+def create_launch_agent():
+    """create if not exist+dynamische pfad erkennung"""
+    launch_agent_path = os.path.expanduser("~/Library/LaunchAgents/com.meinprogramm.scanrenamer.plist")
+
+    # Dynamische Erkennung des aktuellen Programmpfads
+    program_path = os.path.realpath(__file__)
+
+    plist_content = f"""<?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Label</key>
+        <string>com.meinprogramm.scanrenamer</string>
+
+        <key>ProgramArguments</key>
+        <array>
+            <string>/usr/bin/python3</string>  <!-- Python Interpreter -->
+            <string>{program_path}</string>    <!-- Dynamischer Pfad zum Programm -->
+        </array>
+
+        <key>RunAtLoad</key>
+        <true/>
+
+        <key>KeepAlive</key>
+        <true/>
+    </dict>
+    </plist>"""
+
+    # LaunchAgent Datei erstellen
+    with open(launch_agent_path, "w") as plist_file:
+        plist_file.write(plist_content)
+
+    # LaunchAgent laden
+    os.system(f"launchctl load {launch_agent_path}")
+    log_message(f"LaunchAgent wurde erstellt und geladen für {program_path}.")
+
 
 def get_subject_from_text(text):
     """fettgedruckt oder Begriffe"""
@@ -116,6 +146,7 @@ def get_subject_from_text(text):
                 break
     return subject
 
+
 def rename_file(old_path, absender, date, subject):
     """benenne um → Absender_Datum_Betreff"""
     directory, old_file_name = os.path.split(old_path)
@@ -128,6 +159,7 @@ def rename_file(old_path, absender, date, subject):
         log_message(f"Datei umbenannt von {old_file_name} zu {new_file_name}")
     else:
         log_message(f"Fehler: Die Datei {new_file_path} existiert bereits.")
+
 
 def process_scan_files(scans_folder):
     """bearbeite inkrementell"""
@@ -147,6 +179,7 @@ def process_scan_files(scans_folder):
             else:
                 log_message(f"Kein Betreff gefunden für {file_name}.")
 
+
 def main():
     """Hauptverarbeitung"""
     try:
@@ -155,6 +188,7 @@ def main():
         log_message(f"Programm abgestürzt: {e}")
         time.sleep(5)  # Warten
         main()  # Programm neu starten
+
 
 if __name__ == "__main__":
     create_launch_agent()
