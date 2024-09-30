@@ -5,25 +5,21 @@ import pytesseract
 import re
 from datetime import datetime, timedelta
 
-
 # scant im verzeichnis
 scans_folder = os.path.dirname(os.path.realpath(__file__))
-
 
 # Pfad Logdatei
 desktop_path = os.path.join(os.path.expanduser("~"), "Desktop")
 log_file_path = os.path.join(desktop_path, "Logeinträge_ScanRename.txt")
 
-
-#logfile prüfen/create
+# Logdatei prüfen/create
 def check_and_create_log_file():
     """create if not exist"""
     if not os.path.exists(log_file_path):
         with open(log_file_path, "w") as log_file:
             log_file.write(f"Logdatei erstellt am {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
 
-
-#einträge mit timestamp
+# Einträge mit timestamp
 def log_message(message):
     """logdatei + zeitstempel"""
     check_and_create_log_file()  # create if not
@@ -33,25 +29,23 @@ def log_message(message):
     with open(log_file_path, "a") as log_file:
         log_file.write(f"{timestamp} - {message}\n")
 
-
-#nur einträge -=woche
+# Nur Einträge -=woche
 def clean_old_log_entries():
-    """create if not exist"""
-    if not os.path.exists(log_file_path):
-        with open(log_file_path, "w") as log_file:
+    """Lösche Einträge älter als eine Woche"""
+    if os.path.exists(log_file_path):
+        with open(log_file_path, "r") as log_file:
             lines = log_file.readlines()
 
-        #achte auf speicher->nicht älter als 7 tage
+        # Achte auf speicher → nicht älter als 7 Tage
         woche_alt = datetime.now() - timedelta(days=7)
         with open(log_file_path, "w") as log_file:
             for line in lines:
                 try:
                     log_time = datetime.strptime(line.split(" - ")[0], "%Y-%m-%d %H:%M:%S")
                     if log_time > woche_alt:
-                        log_file.write(line) #nix behalten>woche
+                        log_file.write(line)  # nichts behalten > Woche
                 except (ValueError, IndexError):
                     log_file.write(line)
-
 
 def extract_text_from_image(image_path):
     """extrahiere aus Bild"""
@@ -59,12 +53,10 @@ def extract_text_from_image(image_path):
         with Image.open(image_path) as img:
             return pytesseract.image_to_string(img)
     except Exception as e:
-        print(f"Erreur de traitement de l'image {image_path}: {e}")
+        log_message(f"Erreur de traitement de l'image {image_path}: {e}")
         return ""
 
-
-
-#apple autostart
+# Apple Autostart
 def create_launch_agent():
     """create if not exist"""
     launch_agent_path = os.path.expanduser("~/Library/LaunchAgents/com.meinprogramm.scanrenamer.plist")
@@ -81,6 +73,7 @@ def create_launch_agent():
 
             <key>ProgramArguments</key>
             <array>
+                <string>/usr/bin/python3</string>  <!-- Interpreter hinzufügen -->
                 <string>{program_path}</string>
             </array>
 
@@ -100,19 +93,22 @@ def create_launch_agent():
     else:
         log_message("LaunchAgent existiert bereits.")
 
-
 def get_subject_from_text(text):
-    """suche fettgedrucktes"""
+    """fettgedruckt oder Begriffe"""
     subject = None
     lines = text.split('\n')
 
-    # nur erstes Drittel
-    for line in lines[:15]:
-        if line.isupper():  # Großbuchstaben simulieren
-            subject = line.strip()
-            break
+    # Such "Akten-/Geschäftszeichen" → nimm die Zeile darunter
+    for i, line in enumerate(lines):
+        if "Akten-/Geschäftszeichen" in line:
+            try:
+                subject = f"Aktenzeichen_{lines[i + 1].strip()}"  # nächste Zeile als Betreff
+                break
+            except IndexError:
+                log_message("Kein Aktenzeichen in der Zeile gefunden.")
+                break
 
-    # Falls kein Betreff
+    # falls kein Betreff
     if not subject:
         for line in lines:
             if "Aktenzeichen" in line or "Geschäftszeichen" in line:
@@ -120,19 +116,18 @@ def get_subject_from_text(text):
                 break
     return subject
 
-
-def rename_file(old_path, new_name):
-    """benenne um"""
+def rename_file(old_path, absender, date, subject):
+    """benenne um → Absender_Datum_Betreff"""
     directory, old_file_name = os.path.split(old_path)
     file_extension = old_file_name.split('.')[-1]
-    new_file_path = os.path.join(directory, f"{new_name}.{file_extension}")
+    new_file_name = f"{absender}_{date}_{subject}.{file_extension}"  # ANFORDERUNG-> Absender_Datum_Betreff
+    new_file_path = os.path.join(directory, new_file_name)
 
-    if not os.path.exists(new_file_path):  # vermeidung Konflikte
+    if not os.path.exists(new_file_path):  # vermeide Konflikte
         os.rename(old_path, new_file_path)
-        log_message(f"Datei umbenannt von {old_file_name} zu {new_name}.{file_extension}")
+        log_message(f"Datei umbenannt von {old_file_name} zu {new_file_name}")
     else:
         log_message(f"Fehler: Die Datei {new_file_path} existiert bereits.")
-
 
 def process_scan_files(scans_folder):
     """bearbeite inkrementell"""
@@ -141,25 +136,25 @@ def process_scan_files(scans_folder):
             file_path = os.path.join(scans_folder, file_name)
             log_message(f"Verarbeite {file_name}...")
 
+            absender = file_name.split('_')[1]  # annahme Absender an zweiter Stelle
+            date = file_name.split('_')[0]  # Datum an erster
+
             text = extract_text_from_image(file_path)
             subject = get_subject_from_text(text)
 
             if subject:
-                new_name = file_name.replace("Anzahl", subject)  # Ersetze Anzahl durch den Betreff
-                rename_file(file_path, new_name)
+                rename_file(file_path, absender, date, subject)  # Übergabe -> an rename_file
             else:
                 log_message(f"Kein Betreff gefunden für {file_name}.")
 
-
 def main():
-    """hier wird ausgeführt"""
+    """Hauptverarbeitung"""
     try:
         process_scan_files(scans_folder)
     except Exception as e:
         log_message(f"Programm abgestürzt: {e}")
-        time.sleep(5)  # warten
-        main()  # Programm restart
-
+        time.sleep(5)  # Warten
+        main()  # Programm neu starten
 
 if __name__ == "__main__":
     create_launch_agent()
@@ -169,4 +164,4 @@ if __name__ == "__main__":
             main()  # Hauptverarbeitung
         except Exception as e:
             log_message(f"Fehler im Hauptprogramm: {e}")
-            time.sleep(5)  # warte restart
+            time.sleep(5)  # Warten vor Neustart
