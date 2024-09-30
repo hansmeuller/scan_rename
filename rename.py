@@ -216,25 +216,6 @@ def rename_file(old_path, absender, date, subject):
         log_message(f"Fehler: Die Datei {new_file_path} existiert bereits.")
 
 
-def process_scan_files(scans_folder):
-    """bearbeite inkrementell"""
-    for file_name in os.listdir(scans_folder):
-        if file_name.endswith((".png", ".jpg", ".pdf")) and "Anzahl" in file_name:
-            file_path = os.path.join(scans_folder, file_name)
-            log_message(f"Verarbeite {file_name}...")
-
-            absender = file_name.split('_')[1]  # annahme Absender an zweiter Stelle
-            date = file_name.split('_')[0]  # Datum an erster
-
-            text = extract_text_with_format_from_pdf(file_path)
-            subject = get_subject_from_text(text)
-
-            if subject:
-                rename_file(file_path, absender, date, subject)  # Übergabe -> an rename_file
-            else:
-                log_message(f"Kein Betreff gefunden für {file_name}.")
-
-
 def main():
     """Hauptverarbeitung"""
     try:
