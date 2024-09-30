@@ -63,7 +63,7 @@ def extract_text_from_image(image_path):
 
 # Apple Autostart
 def check_and_update_launch_agent():
-    """Prüft LaunchAgent-Pfad und aktualisiert, falls nötig."""
+    """Prüft LaunchAgent-Pfad aktualisiert, falls nötig."""
     launch_agent_path = os.path.expanduser("~/Library/LaunchAgents/com.meinprogramm.scanrenamer.plist")
 
     # Dynamischer Pfad
@@ -86,12 +86,9 @@ def check_and_update_launch_agent():
         create_launch_agent(current_program_path)
 
 
-def create_launch_agent():
-    """create if not exist+dynamische pfad erkennung"""
+def create_launch_agent(program_path):
+    """nimmt angegebenen Programm-Pfad"""
     launch_agent_path = os.path.expanduser("~/Library/LaunchAgents/com.meinprogramm.scanrenamer.plist")
-
-    # Dynamische Erkennung des aktuellen Programmpfads
-    program_path = os.path.realpath(__file__)
 
     plist_content = f"""<?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -114,11 +111,12 @@ def create_launch_agent():
     </dict>
     </plist>"""
 
-    # LaunchAgent Datei erstellen
+    # create or overwrite
     with open(launch_agent_path, "w") as plist_file:
         plist_file.write(plist_content)
 
-    # LaunchAgent laden
+    # LaunchAgent neu laden
+    os.system(f"launchctl unload {launch_agent_path}")
     os.system(f"launchctl load {launch_agent_path}")
     log_message(f"LaunchAgent wurde erstellt und geladen für {program_path}.")
 
@@ -191,7 +189,7 @@ def main():
 
 
 if __name__ == "__main__":
-    create_launch_agent()
+    check_and_update_launch_agent()
     log_message("Programm gestartet.")
     while True:
         try:
