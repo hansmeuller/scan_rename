@@ -1,9 +1,11 @@
 import time
 import os
 from PIL import Image
-import pytesseract
 import re
 from datetime import datetime, timedelta
+from pdfminer.high_level import extract_pages
+from pdfminer.layout import LTTextBoxHorizontal, LTTextLineHorizontal
+
 
 # scant im verzeichnis
 scans_folder = os.path.dirname(os.path.realpath(__file__))
@@ -51,14 +53,69 @@ def clean_old_log_entries():
                     log_file.write(line)
 
 
-def extract_text_from_image(image_path):
-    """extrahiere aus Bild"""
-    try:
-        with Image.open(image_path) as img:
-            return pytesseract.image_to_string(img)
-    except Exception as e:
-        log_message(f"Erreur de traitement de l'image {image_path}: {e}")
-        return ""
+def extract_text_with_format_from_pdf(pdf_path):
+    """Extrahiert Text und erkennt mögliche Formatierungen (z.B. Fettdruck) aus einer PDF."""
+    formatted_text = []
+
+    for page_layout in extract_pages(pdf_path):
+        for element in page_layout:
+            if isinstance(element, LTTextBoxHorizontal) or isinstance(element, LTTextLineHorizontal):
+                for text_line in element:
+                    # Zugriff auf Textinhalt und mögliche Formatierungen
+                    text = text_line.get_text()
+                    font_size = text_line.height  # Annahme: Schriftgröße aus der Höhe des Texts
+                    font_name = text_line.fontname if hasattr(text_line, 'fontname') else "unknown"
+
+                    # Wir können bestimmte Kriterien nutzen, um Fettdruck zu simulieren
+                    if font_name.lower().find("bold") != -1 or font_size > 12:  # Beispiel für große Schrift/Fettdruck
+                        formatted_text.append((text.strip(), "bold"))
+                    else:
+                        formatted_text.append((text.strip(), "normal"))
+
+    return formatted_text
+
+
+# Beispiel für die Verwendung
+pdf_path = "/Pfad/zu/deinem/Scan.pdf"
+formatted_text = extract_text_with_format_from_pdf(pdf_path)
+
+# Ausgabe der erkannten Formatierungen
+for line, format in formatted_text:
+    print(f"Text: {line}, Format: {format}")
+
+
+def get_subject_from_formatted_text(formatted_text):
+    """Sucht im extrahierten Text nach dem fettgedruckten Betreff."""
+    subject = None
+
+    for line, format in formatted_text:
+        if format == "bold":  # Sucht nach fettgedruckten Zeilen
+            subject = line.strip()
+            break
+
+    return subject
+
+# Nutzung in deinem Prozess
+formatted_text = extract_text_with_format_from_pdf(pdf_path)
+subject = get_subject_from_formatted_text(formatted_text)
+
+
+def process_scan_files(scans_folder):
+    """Durchsuche das Verzeichnis und bearbeite PDFs mit pdfminer."""
+    for file_name in os.listdir(scans_folder):
+        if file_name.endswith(".pdf"):  # Jetzt nur PDFs verarbeiten
+            file_path = os.path.join(scans_folder, file_name)
+            log_message(f"Verarbeite {file_name}...")
+
+            # Extrahiere formatierten Text mit pdfminer
+            formatted_text = extract_text_with_format_from_pdf(file_path)
+            subject = get_subject_from_formatted_text(formatted_text)
+
+            if subject:
+                new_name = file_name.replace("Anzahl", subject)  # Betreff in den Dateinamen einfügen
+                rename_file(file_path, new_name)
+            else:
+                log_message(f"Kein Betreff gefunden für {file_name}.")
 
 
 # Apple Autostart
@@ -169,7 +226,7 @@ def process_scan_files(scans_folder):
             absender = file_name.split('_')[1]  # annahme Absender an zweiter Stelle
             date = file_name.split('_')[0]  # Datum an erster
 
-            text = extract_text_from_image(file_path)
+            text = extract_text_with_format_from_pdf(file_path)
             subject = get_subject_from_text(text)
 
             if subject:
