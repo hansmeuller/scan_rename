@@ -14,11 +14,43 @@ scans_folder = os.path.dirname(os.path.realpath(__file__))
 desktop_path = os.path.join(os.path.expanduser("~"), "Desktop")
 log_file_path = os.path.join(desktop_path, "Logeinträge_ScanRename.txt")
 
+#logfile prüfen/create
 def check_and_create_log_file():
-    """Logdatei erstellt falls notwendig"""
+    """create if not exist"""
     if not os.path.exists(log_file_path):
         with open(log_file_path, "w") as log_file:
             log_file.write(f"Logdatei erstellt am {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+
+
+#einträge mit timestamp
+def log_message(message):
+    """logdatei + zeitstempel"""
+    check_and_create_log_file()  # create if not
+    clean_old_log_entries()  # lösche+=woche
+
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    with open(log_file_path, "a") as log_file:
+        log_file.write(f"{timestamp} - {message}\n")
+
+
+#nur einträge -=woche
+def clean_old_log_entries():
+    """create if not exist"""
+    if not os.path.exists(log_file_path):
+        with open(log_file_path, "w") as log_file:
+            lines = log_file.readlines()
+
+        #achte auf speicher->nicht älter als 7 tage
+        woche_alt = datetime.now() - timedelta(days=7)
+        with open(log_file_path, "w") as log_file:
+            for line in lines:
+                try:
+                    log_time = datetime.strptime(line.split(" - ")[0], "%Y-%m-%d %H:%M:%S")
+                    if log_time > woche_alt:
+                        log_file.write(line) #nix behalten>woche
+                except (ValueError, IndexError):
+                    log_file.write(line)
+
 
 
 def extract_text_from_image(image_path):
@@ -43,14 +75,41 @@ def extract_text_from_image(image_path):
                     log_file.write(line)  # Falls das Format nicht stimmt, trotzdem die Zeile behalten
 
 
-def log_message(message):
-    """Schreibt in Logdatei mit Zeitstempel."""
-    check_and_create_log_file()  # Prüfen, ob die Logdatei existiert
-    clean_old_log_entries()  # Alte Einträge bereinigen
+#apple autostart
+def create_launch_agent():
+    """create if not exist"""
+    launch_agent_path = os.path.expanduser("~/Library/LaunchAgents/com.meinprogramm.scanrenamer.plist")
 
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    with open(log_file_path, "a") as log_file:
-        log_file.write(f"{timestamp} - {message}\n")
+    if not os.path.exists(launch_agent_path):
+        program_path = os.path.realpath(__file__)
+
+        plist_content = f"""<?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+            <key>Label</key>
+            <string>com.meinprogramm.scanrenamer</string>
+
+            <key>ProgramArguments</key>
+            <array>
+                <string>{program_path}</string>
+            </array>
+
+            <key>RunAtLoad</key>
+            <true/>
+
+            <key>KeepAlive</key>
+            <true/>
+        </dict>
+        </plist>"""
+
+        with open(launch_agent_path, "w") as plist_file:
+            plist_file.write(plist_content)
+
+        os.system(f"launchctl load {launch_agent_path}")
+        log_message("LaunchAgent wurde erstellt und geladen.")
+    else:
+        log_message("LaunchAgent existiert bereits.")
 
 
 def get_subject_from_text(text):
@@ -114,6 +173,8 @@ def main():
 
 
 if __name__ == "__main__":
+    create_launch_agent()
+    log_message("Programm gestartet.")
     while True:
         try:
             main()  # starte Hauptverarbeitung
