@@ -36,7 +36,7 @@ def log_message(message):
 
 # Nur Einträge -=woche
 def clean_old_log_entries():
-    """Lösche Einträge älter als eine Woche"""
+    """Lösche +=Woche"""
     if os.path.exists(log_file_path):
         with open(log_file_path, "r") as log_file:
             lines = log_file.readlines()
@@ -54,7 +54,7 @@ def clean_old_log_entries():
 
 
 def extract_text_with_format_from_pdf(pdf_path):
-    """Extrahiert Text und erkennt mögliche Formatierungen (z.B. Fettdruck) aus einer PDF."""
+    """Extrahiert Text"""
     formatted_text = []
 
     for page_layout in extract_pages(pdf_path):
@@ -75,17 +75,16 @@ def extract_text_with_format_from_pdf(pdf_path):
     return formatted_text
 
 
-# Beispiel für die Verwendung
 pdf_path = "/Pfad/zu/deinem/Scan.pdf"
 formatted_text = extract_text_with_format_from_pdf(pdf_path)
 
-# Ausgabe der erkannten Formatierungen
+# Ausgabe der Formatierung
 for line, format in formatted_text:
-    print(f"Text: {line}, Format: {format}")
+    log_message(f"Text: {line}, Format: {format}")
 
 
 def get_subject_from_formatted_text(formatted_text):
-    """Sucht im extrahierten Text nach dem fettgedruckten Betreff."""
+    """Such nach fettgedruckten"""
     subject = None
 
     for line, format in formatted_text:
@@ -95,19 +94,19 @@ def get_subject_from_formatted_text(formatted_text):
 
     return subject
 
-# Nutzung in deinem Prozess
+# Nutzung
 formatted_text = extract_text_with_format_from_pdf(pdf_path)
 subject = get_subject_from_formatted_text(formatted_text)
 
 
 def process_scan_files(scans_folder):
-    """Durchsuche das Verzeichnis und bearbeite PDFs mit pdfminer."""
+    """bearbeite mit pdfminer"""
     for file_name in os.listdir(scans_folder):
         if file_name.endswith(".pdf"):  # Jetzt nur PDFs verarbeiten
             file_path = os.path.join(scans_folder, file_name)
             log_message(f"Verarbeite {file_name}...")
 
-            # Extrahiere formatierten Text mit pdfminer
+            # ExtrahiereText mit pdfminer
             formatted_text = extract_text_with_format_from_pdf(file_path)
             subject = get_subject_from_formatted_text(formatted_text)
 
@@ -120,7 +119,7 @@ def process_scan_files(scans_folder):
 
 # Apple Autostart
 def check_and_update_launch_agent():
-    """Prüft LaunchAgent-Pfad aktualisiert, falls nötig."""
+    """LaunchAgent-Pfad +aktualisierung"""
     launch_agent_path = os.path.expanduser("~/Library/LaunchAgents/com.meinprogramm.scanrenamer.plist")
 
     # Dynamischer Pfad
