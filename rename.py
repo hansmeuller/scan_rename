@@ -201,6 +201,11 @@ def get_subject_from_text(text):
     return subject
 
 
+def sanitize_filename(filename):
+    """keine unzulässige Zeichen"""
+    return re.sub(r'[\/:*?"<>|]', '_', filename)
+
+
 def rename_file(old_path, absender, date, subject):
     """benenne um → Absender_Datum_Betreff"""
     directory, old_file_name = os.path.split(old_path)
