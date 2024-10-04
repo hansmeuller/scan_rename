@@ -9,10 +9,12 @@ from pdfminer.layout import LTTextBoxHorizontal, LTTextLineHorizontal
 
 # scant im verzeichnis
 scans_folder = os.path.dirname(os.path.realpath(__file__))
-
 # Pfad Logdatei
 desktop_path = os.path.join(os.path.expanduser("~"), "Desktop")
 log_file_path = os.path.join(desktop_path, "Logeinträge_ScanRename.txt")
+#pdf-pfad im dynamischen datei pfad
+pdf_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "current_program_path.pdf")
+
 
 
 # Logdatei prüfen/create
