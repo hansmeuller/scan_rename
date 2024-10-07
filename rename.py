@@ -77,7 +77,6 @@ def extract_text_with_format_from_pdf(pdf_path):
     return formatted_text
 
 
-pdf_path = "/Pfad/zu/deinem/Scan.pdf"
 formatted_text = extract_text_with_format_from_pdf(pdf_path)
 
 # Ausgabe der Formatierung
