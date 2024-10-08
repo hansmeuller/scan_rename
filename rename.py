@@ -105,8 +105,8 @@ def process_scan_files(scans_folder):
 
 # apple autostart
 def check_and_update_launch_agent():
-    """prüfe+aktualisieren"""
-    launch_agent_path = os.path.expanduser("~/Library/LaunchAgents/com.meinprogramm.scanrenamer.plist")
+    """Prüft und aktualisiert"""
+    launch_agent_path = os.path.expanduser("~/Library/LaunchAgents/com.scan_rename.plist")
     current_program_path = os.path.realpath(__file__)
 
     if os.path.exists(launch_agent_path):
@@ -123,22 +123,24 @@ def check_and_update_launch_agent():
         create_launch_agent(current_program_path)
 
 
+
+
 # LaunchAgent erstellen
 def create_launch_agent(program_path):
-    """Erstellt einen LaunchAgent für das Programm."""
-    launch_agent_path = os.path.expanduser("~/Library/LaunchAgents/com.meinprogramm.scanrenamer.plist")
+    """LaunchAgent"""
+    launch_agent_path = os.path.expanduser("~/Library/LaunchAgents/com.scan_rename.plist")
 
     plist_content = f"""<?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
     <plist version="1.0">
     <dict>
         <key>Label</key>
-        <string>com.meinprogramm.scanrenamer</string>
+        <string>com.scan_rename</string>
 
         <key>ProgramArguments</key>
         <array>
-            <string>/usr/bin/python3</string>
-            <string>{program_path}</string>
+            <string>/usr/bin/python3</string>  <!-- Python Interpreter -->
+            <string>{program_path}</string>    <!-- Dynamischer Pfad zum Programm -->
         </array>
 
         <key>RunAtLoad</key>
@@ -149,9 +151,11 @@ def create_launch_agent(program_path):
     </dict>
     </plist>"""
 
+    # erstellen / aktualisieren
     with open(launch_agent_path, "w") as plist_file:
         plist_file.write(plist_content)
 
+    # neu laden
     os.system(f"launchctl unload {launch_agent_path}")
     os.system(f"launchctl load {launch_agent_path}")
     log_message(f"LaunchAgent wurde erstellt und geladen für {program_path}.")
