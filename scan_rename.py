@@ -195,16 +195,14 @@ def rename_file(old_path, absender, date, subject):
 
 # Hauptverarbeitung
 def main():
-    """main"""
-
+    """Main"""
+    check_and_create_log_file()
+    clean_old_log_entries()
     try:
-        log_message("Start erfolgreich")
         process_scan_files(scans_folder)
     except Exception as e:
-        print("fehler")
         log_message(f"Programm abgestürzt: {e}")
         time.sleep(5)
-        main()
 
 if __name__ == "__main__":
     main()
