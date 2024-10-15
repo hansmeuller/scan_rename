@@ -1,19 +1,19 @@
 import time
 import os
-from PIL import Image
 import re
+import pdfminer
+import pytesseract
+from PIL import Image
+from pdf2image import convert_from_path
 from datetime import datetime, timedelta
-from pdfminer.high_level import extract_pages
-from pdfminer.layout import LTTextBoxHorizontal, LTTextLineHorizontal
+from pdfminer.high_level import extract_text
+from pdfminer.layout import LAParams
 
-
-# scant im verzeichnis
-scans_folder = os.path.join(os.path.expanduser("~"), "Downloads")
-downloads_path = os.path.join(os.path.expanduser("~"), "Downloads")
-# Pfad Logdatei
-
-log_file_path = os.path.join(downloads_path, "Logeinträge_ScanRename.txt")
-log_file_exists=False
+# scant current
+scans_folder = os.path.dirname(os.path.realpath(__file__))
+# current Verzeichnis
+log_file_path = os.path.join(scans_folder, "Logeinträge_ScanRename.txt")
+log_file_exists = False
 print(f"Logdatei-pfad: {log_file_path}")
 
 
@@ -29,7 +29,8 @@ def check_and_create_log_file():
             log_file.write(f"Logdatei erstellt am {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
     else:
         print("exist")
-    log_file_exists=True
+    log_file_exists = True
+
 
 # Einträge mit timestamp
 def log_message(message):
@@ -60,122 +61,54 @@ def clean_old_log_entries():
                     log_file.write(line)
 
 
-# extrahiere pdfminer
+# extrahiere inklusive OCR-Sicherung
 def extract_text_with_format_from_pdf(pdf_path):
-    """extrahiere"""
+    """Extrahiert"""
     formatted_text = []
-    for page_layout in extract_pages(pdf_path):
-        for element in page_layout:
-            if isinstance(element, LTTextBoxHorizontal) or isinstance(element, LTTextLineHorizontal):
-                for text_line in element:
-                    text = text_line.get_text()
-                    font_size = text_line.height  # schriftgröße
-                    font_name = text_line.fontname if hasattr(text_line, 'fontname') else "unknown"
 
-                    if font_name.lower().find("bold") != -1 or font_size > 12:  # fettdruck simulieren
-                        formatted_text.append((text.strip(), "bold"))
-                    else:
-                        formatted_text.append((text.strip(), "normal"))
+    try:
+        text = extract_text(pdf_path, laparams=LAParams())
+        if text:
+            lines = text.split("\n")
+            for line in lines:
+                formatted_text.append((line.strip(), 'normal'))
+    except Exception as e:
+        log_message(f"Fehler beim Öffnen der Datei {pdf_path}: {e}")
+
+    # OCR
+    if not formatted_text:
+        log_message(f"Keine Textinhalte gefunden, führe OCR für Datei {pdf_path} aus...")
+        try:
+            images = convert_from_path(pdf_path)
+            for image in images:
+                text = pytesseract.image_to_string(image, lang='deu')
+                if text.strip():
+                    formatted_text.append((text.strip(), 'normal'))
+        except Exception as e:
+            log_message(f"Fehler bei der OCR-Verarbeitung von {pdf_path}: {e}")
 
     return formatted_text
 
 
 # suche fettgedrucktes
 def get_subject_from_formatted_text(formatted_text):
-    """fettgedruckt"""
+    """fettgedrucktes"""
     subject = None
+
+    # Zuerst
     for line, format in formatted_text:
-        if format == "bold":  # betreff ist fettgedruckt
+        if format == "bold":
             subject = line.strip()
             break
+
+    # az
+    if not subject:
+        for line, format in formatted_text:
+            if re.search(r'aktenzeichen[:\s]*[a-zA-Z0-9\/\-\.]+', line, re.IGNORECASE):
+                subject = f"Aktenzeichen_{line.strip()}"
+                break
+
     return subject
-
-
-# pfad
-def process_scan_files(scans_folder):
-    """verarbeite"""
-    log_message(f"Arbeitsverzeichnis: {os.getcwd()}")
-    for file_name in os.listdir(scans_folder):
-        if file_name.endswith(".pdf"):  # Verarbeite nur PDFs
-            file_path = os.path.join(scans_folder, file_name)
-            log_message(f"Verarbeite {file_name}...")
-
-            # Extrahiere mit pdfminer
-            formatted_text = extract_text_with_format_from_pdf(file_path)
-            subject = get_subject_from_formatted_text(formatted_text)
-
-            if subject:
-                absender = file_name.split('_')[1]  # Absender an zweiter Stelle im Dateinamen
-                date = file_name.split('_')[0]  # Datum an erster Stelle im Dateinamen
-                new_name = f"{absender}_{date}_{subject}"
-                rename_file(file_path, absender, date, subject)
-            else:
-                log_message(f"Kein Betreff gefunden für {file_name}.")
-
-
-
-# apple autostart
-def check_and_update_launch_agent():
-    """Prüft und aktualisiert"""
-    launch_agent_path = os.path.expanduser("~/Library/LaunchAgents/com.scan_rename.plist")
-    current_program_path = os.path.realpath(__file__)
-
-    if os.path.exists(launch_agent_path):
-        with open(launch_agent_path, "r") as plist_file:
-            content = plist_file.read()
-
-        if current_program_path in content:
-            log_message(f"LaunchAgent ist aktuell. Programm wird von {current_program_path} ausgeführt.")
-        else:
-            log_message("LaunchAgent veraltet. Wird aktualisiert.")
-            create_launch_agent(current_program_path)
-    else:
-        log_message("LaunchAgent existiert nicht. Erstellt neuen LaunchAgent.")
-        create_launch_agent(current_program_path)
-
-
-
-
-# LaunchAgent erstellen
-def create_launch_agent(program_path):
-    """LaunchAgent"""
-    launch_agent_path = os.path.expanduser("~/Library/LaunchAgents/com.scan_rename.plist")
-
-    plist_content = f"""<?xml version="1.0" encoding="UTF-8"?>
-    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-    <plist version="1.0">
-    <dict>
-        <key>Label</key>
-        <string>com.scan_rename</string>
-
-        <key>ProgramArguments</key>
-        <array>
-            <string>/usr/bin/python3</string>  <!-- Python Interpreter -->
-            <string>{program_path}</string>    <!-- Dynamischer Pfad zum Programm -->
-        </array>
-
-        <key>RunAtLoad</key>
-        <true/>
-
-        <key>KeepAlive</key>
-        <true/>
-    </dict>
-    </plist>"""
-
-    # erstellen / aktualisieren
-    with open(launch_agent_path, "w") as plist_file:
-        plist_file.write(plist_content)
-
-    # neu laden
-    os.system(f"launchctl unload {launch_agent_path}")
-    os.system(f"launchctl load {launch_agent_path}")
-    log_message(f"LaunchAgent wurde erstellt und geladen für {program_path}.")
-
-
-# check
-def sanitize_filename(filename):
-    """keine unzulässigen"""
-    return re.sub(r'[\/:*?"<>|]', '_', filename)
 
 
 # Datei umbenennen
@@ -193,16 +126,44 @@ def rename_file(old_path, absender, date, subject):
         log_message(f"Fehler: Die Datei {new_file_path} existiert bereits.")
 
 
+# bereinigen
+def sanitize_filename(filename):
+    """Entfernt"""
+    return re.sub(r'[\/\:*?"<>|]', '_', filename)
+
+
+# Hauptprozess
+def process_scan_files(scans_folder):
+    """bearbeitet"""
+    log_message(f"Arbeitsverzeichnis: {os.getcwd()}")
+    for file_name in os.listdir(scans_folder):
+        if file_name.endswith(".pdf"):
+            file_path = os.path.join(scans_folder, file_name)
+            log_message(f"Verarbeite {file_name}...")
+
+            # Extrahiere
+            formatted_text = extract_text_with_format_from_pdf(file_path)
+            subject = get_subject_from_formatted_text(formatted_text)
+
+            if subject:
+                absender = file_name.split('_')[1]  # zweiter Stelle
+                date = file_name.split('_')[0]  # Datum an erster Stelle
+                rename_file(file_path, absender, date, subject)
+            else:
+                log_message(f"Kein Betreff gefunden für {file_name}.")
+
+
 # Hauptverarbeitung
 def main():
     """Main"""
-    check_and_create_log_file()
-    clean_old_log_entries()
     try:
+        log_message("Start erfolgreich")
         process_scan_files(scans_folder)
     except Exception as e:
         log_message(f"Programm abgestürzt: {e}")
         time.sleep(5)
+        main()
+
 
 if __name__ == "__main__":
     main()
