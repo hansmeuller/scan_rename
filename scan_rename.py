@@ -1,17 +1,15 @@
 import time
 import os
 import re
-import pdfminer
+import pdfplumber
 import pytesseract
-from PIL import Image
 from pdf2image import convert_from_path
 from datetime import datetime, timedelta
-from pdfminer.high_level import extract_text
-from pdfminer.layout import LAParams
+from PIL import Image
 
 # scant current
 scans_folder = os.path.dirname(os.path.realpath(__file__))
-# current Verzeichnis
+# Pfad current
 log_file_path = os.path.join(scans_folder, "Logeinträge_ScanRename.txt")
 log_file_exists = False
 print(f"Logdatei-pfad: {log_file_path}")
@@ -61,52 +59,60 @@ def clean_old_log_entries():
                     log_file.write(line)
 
 
-# extrahiere inklusive OCR-Sicherung
-def extract_text_with_format_from_pdf(pdf_path):
-    """Extrahiert"""
-    formatted_text = []
+# OCR-Verarbeitung
+def ocr_and_extract_text(pdf_path):
+    """Extrahiert PDF"""
+    text = ""
 
     try:
-        text = extract_text(pdf_path, laparams=LAParams())
-        if text:
-            lines = text.split("\n")
-            for line in lines:
-                formatted_text.append((line.strip(), 'normal'))
-    except Exception as e:
-        log_message(f"Fehler beim Öffnen der Datei {pdf_path}: {e}")
+        # pdfplumber
+        with pdfplumber.open(pdf_path) as pdf:
+            for page in pdf.pages:
+                page_text = page.extract_text(x_tolerance=2, y_tolerance=2)
+                if page_text:
+                    text += page_text + "\n"
 
-    # OCR
-    if not formatted_text:
-        log_message(f"Keine Textinhalte gefunden, führe OCR für Datei {pdf_path} aus...")
-        try:
+                # Extrahiere
+                for char in page.chars:
+                    if 'Bold' in char.get('fontname', '').lower():
+                        text += f"[FETT]{char['text']}[ENDE_FETT] "
+
+        # verwende OCR
+        if not text.strip():
+            log_message(f"Kein Text gefunden, starte OCR für {pdf_path}")
             images = convert_from_path(pdf_path)
             for image in images:
-                text = pytesseract.image_to_string(image, lang='deu')
-                if text.strip():
-                    formatted_text.append((text.strip(), 'normal'))
-        except Exception as e:
-            log_message(f"Fehler bei der OCR-Verarbeitung von {pdf_path}: {e}")
+                ocr_text = pytesseract.image_to_string(image, lang='deu')
+                text += ocr_text + "\n"
 
-    return formatted_text
+        log_message(f"Text erfolgreich extrahiert für Datei {pdf_path}")
+    except Exception as e:
+        log_message(f"Fehler bei der Textverarbeitung von {pdf_path}: {e}")
+
+    return text
 
 
-# suche fettgedrucktes
-def get_subject_from_formatted_text(formatted_text):
-    """fettgedrucktes"""
+# suche fettgedrucktes und Schlüsselwörter
+def get_subject_from_text(text):
+    """Sucht"""
     subject = None
 
-    # Zuerst
-    for line, format in formatted_text:
-        if format == "bold":
-            subject = line.strip()
-            break
+    try:
+        lines = text.split("\n")
 
-    # az
-    if not subject:
-        for line, format in formatted_text:
-            if re.search(r'aktenzeichen[:\s]*[a-zA-Z0-9\/\-\.]+', line, re.IGNORECASE):
+        # fettgedrucktes
+        for line in lines:
+            if '[FETT]' in line:
+                subject = line.replace('[FETT]', '').replace('[ENDE_FETT]', '').strip()
+                break
+            elif re.search(r'aktenzeichen[:\s]*[a-zA-Z0-9\/\-\.]+', line, re.IGNORECASE):
                 subject = f"Aktenzeichen_{line.strip()}"
                 break
+            elif re.search(r'gericht|beschluss|urteil', line, re.IGNORECASE):
+                subject = line.strip()
+                break
+    except Exception as e:
+        log_message(f"Fehler beim Verarbeiten des Texts: {e}")
 
     return subject
 
@@ -126,7 +132,7 @@ def rename_file(old_path, absender, date, subject):
         log_message(f"Fehler: Die Datei {new_file_path} existiert bereits.")
 
 
-# bereinigen
+# Dateinamen bereinigen
 def sanitize_filename(filename):
     """Entfernt"""
     return re.sub(r'[\/\:*?"<>|]', '_', filename)
@@ -134,20 +140,20 @@ def sanitize_filename(filename):
 
 # Hauptprozess
 def process_scan_files(scans_folder):
-    """bearbeitet"""
+    """Durchsucht"""
     log_message(f"Arbeitsverzeichnis: {os.getcwd()}")
     for file_name in os.listdir(scans_folder):
         if file_name.endswith(".pdf"):
             file_path = os.path.join(scans_folder, file_name)
             log_message(f"Verarbeite {file_name}...")
 
-            # Extrahiere
-            formatted_text = extract_text_with_format_from_pdf(file_path)
-            subject = get_subject_from_formatted_text(formatted_text)
+            # OCR
+            text = ocr_and_extract_text(file_path)
+            subject = get_subject_from_text(text)
 
             if subject:
-                absender = file_name.split('_')[1]  # zweiter Stelle
-                date = file_name.split('_')[0]  # Datum an erster Stelle
+                absender = file_name.split('_')[1]  # Absender
+                date = file_name.split('_')[0]  # Datum
                 rename_file(file_path, absender, date, subject)
             else:
                 log_message(f"Kein Betreff gefunden für {file_name}.")
