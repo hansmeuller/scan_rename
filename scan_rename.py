@@ -59,25 +59,25 @@ def clean_old_log_entries():
                     log_file.write(line)
 
 
-# OCR-Verarbeitung
-def ocr_and_extract_text(pdf_path):
-    """Extrahiert PDF"""
+# OCR
+def ocr_and_extract_text(pdf_path, retry_count=0):
+    """Extrahiert"""
     text = ""
 
     try:
-        # pdfplumber
+        # Versuch pdfplumber
         with pdfplumber.open(pdf_path) as pdf:
             for page in pdf.pages:
                 page_text = page.extract_text(x_tolerance=2, y_tolerance=2)
                 if page_text:
                     text += page_text + "\n"
 
-                # Extrahiere
+                # fettgedruckt explizit
                 for char in page.chars:
                     if 'Bold' in char.get('fontname', '').lower():
                         text += f"[FETT]{char['text']}[ENDE_FETT] "
 
-        # verwende OCR
+        # kein Text = OCR
         if not text.strip():
             log_message(f"Kein Text gefunden, starte OCR für {pdf_path}")
             images = convert_from_path(pdf_path)
@@ -87,26 +87,40 @@ def ocr_and_extract_text(pdf_path):
 
         log_message(f"Text erfolgreich extrahiert für Datei {pdf_path}")
     except Exception as e:
-        log_message(f"Fehler bei der Textverarbeitung von {pdf_path}: {e}")
+        if retry_count < 3:
+            log_message(f"Fehler bei der Textverarbeitung von {pdf_path}: {e}. Wiederhole ({retry_count + 1}/3)")
+            time.sleep(5)
+            return ocr_and_extract_text(pdf_path, retry_count=retry_count + 1)
+        else:
+            log_message(f"Fehler bei der Textverarbeitung von {pdf_path} nach mehreren Versuchen: {e}")
+            return ""
 
     return text
 
 
 # suche fettgedrucktes und Schlüsselwörter
 def get_subject_from_text(text):
-    """Sucht"""
+    """fettgedruckt"""
     subject = None
 
     try:
         lines = text.split("\n")
 
-        # fettgedrucktes
+        # Suche fettgedrucktes
         for line in lines:
             if '[FETT]' in line:
                 subject = line.replace('[FETT]', '').replace('[ENDE_FETT]', '').strip()
                 break
-            elif re.search(r'aktenzeichen[:\s]*[a-zA-Z0-9\/\-\.]+', line, re.IGNORECASE):
-                subject = f"Aktenzeichen_{line.strip()}"
+            elif re.search(r'akten-\s*geschäftszeichen[:\s]*[a-zA-Z0-9\/\-\.]+', line, re.IGNORECASE):
+                # Extrahiere az
+                aktenzeichen_line_index = lines.index(line) + 1
+                if aktenzeichen_line_index < len(lines):
+                    next_line = lines[aktenzeichen_line_index].strip()
+                    date_match = re.search(r'\d{2}\.\d{2}\.\d{4}', next_line)
+                    if date_match:
+                        extracted_string = next_line.split(date_match.group())[0].strip()
+                        log_message(f"String09: {extracted_string}")
+                        subject = f"Aktenzeichen_{extracted_string}"
                 break
             elif re.search(r'gericht|beschluss|urteil', line, re.IGNORECASE):
                 subject = line.strip()
@@ -143,20 +157,33 @@ def process_scan_files(scans_folder):
     """Durchsucht"""
     log_message(f"Arbeitsverzeichnis: {os.getcwd()}")
     for file_name in os.listdir(scans_folder):
-        if file_name.endswith(".pdf"):
+        if file_name.endswith(".pdf") and not file_name.startswith("._"):
             file_path = os.path.join(scans_folder, file_name)
             log_message(f"Verarbeite {file_name}...")
 
             # OCR
             text = ocr_and_extract_text(file_path)
+            if not text:
+                continue
+
             subject = get_subject_from_text(text)
 
             if subject:
-                absender = file_name.split('_')[1]  # Absender
-                date = file_name.split('_')[0]  # Datum
-                rename_file(file_path, absender, date, subject)
+                absender = file_name.split('_')[1]  # Absender second
+                date = file_name.split('_')[0]  # Datum first
+                # Datum Format
+                if re.match(r'\d{8}', date):
+                    new_file_name = f"{absender}_{date}_{subject}.pdf"
+                    rename_file(file_path, absender, date, subject)
+                else:
+                    log_message(f"Fehler: Datum im falschen Format für {file_name}")
             else:
                 log_message(f"Kein Betreff gefunden für {file_name}.")
+
+            # Loops verhindern
+            if "._" in file_name:
+                log_message(f"Überspringe Datei {file_name} aufgrund eines möglichen Fehlers im PDF-Format.")
+                continue
 
 
 # Hauptverarbeitung
