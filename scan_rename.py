@@ -1,11 +1,8 @@
 import time
 import os
 import re
-import pdfplumber
-import pytesseract
-from pdf2image import convert_from_path
+import ocrmypdf
 from datetime import datetime, timedelta
-from PIL import Image
 
 # scant current
 scans_folder = os.path.dirname(os.path.realpath(__file__))
@@ -63,27 +60,13 @@ def clean_old_log_entries():
 def ocr_and_extract_text(pdf_path, retry_count=0):
     """Extrahiert"""
     text = ""
+    temp_txt_file = pdf_path.replace('.pdf', '_text.txt')
 
     try:
-        # Versuch pdfplumber
-        with pdfplumber.open(pdf_path) as pdf:
-            for page in pdf.pages:
-                page_text = page.extract_text(x_tolerance=2, y_tolerance=2)
-                if page_text:
-                    text += page_text + "\n"
-
-                # fettgedruckt explizit
-                for char in page.chars:
-                    if 'Bold' in char.get('fontname', '').lower():
-                        text += f"[FETT]{char['text']}[ENDE_FETT] "
-
-        # kein Text = OCR
-        if not text.strip():
-            log_message(f"Kein Text gefunden, starte OCR für {pdf_path}")
-            images = convert_from_path(pdf_path)
-            for image in images:
-                ocr_text = pytesseract.image_to_string(image, lang='deu')
-                text += ocr_text + "\n"
+        # OCR
+        ocrmypdf.ocr(pdf_path, temp_txt_file, force_ocr=True, sidecar=temp_txt_file)
+        with open(temp_txt_file, 'r') as txt_file:
+            text = txt_file.read()
 
         log_message(f"Text erfolgreich extrahiert für Datei {pdf_path}")
     except Exception as e:
@@ -100,18 +83,15 @@ def ocr_and_extract_text(pdf_path, retry_count=0):
 
 # suche fettgedrucktes und Schlüsselwörter
 def get_subject_from_text(text):
-    """fettgedruckt"""
+    """sucht"""
     subject = None
 
     try:
         lines = text.split("\n")
 
-        # Suche fettgedrucktes
+        # Suche
         for line in lines:
-            if '[FETT]' in line:
-                subject = line.replace('[FETT]', '').replace('[ENDE_FETT]', '').strip()
-                break
-            elif re.search(r'akten-\s*geschäftszeichen[:\s]*[a-zA-Z0-9\/\-\.]+', line, re.IGNORECASE):
+            if re.search(r'akten-\s*geschäftszeichen[:\s]*[a-zA-Z0-9\/\-\.]+', line, re.IGNORECASE):
                 # Extrahiere az
                 aktenzeichen_line_index = lines.index(line) + 1
                 if aktenzeichen_line_index < len(lines):
@@ -169,9 +149,9 @@ def process_scan_files(scans_folder):
             subject = get_subject_from_text(text)
 
             if subject:
-                absender = file_name.split('_')[1]  # Absender second
-                date = file_name.split('_')[0]  # Datum first
-                # Datum Format
+                absender = file_name.split('_')[1]  # Absender
+                date = file_name.split('_')[0]  # Datum
+                # Datum
                 if re.match(r'\d{8}', date):
                     new_file_name = f"{absender}_{date}_{subject}.pdf"
                     rename_file(file_path, absender, date, subject)
