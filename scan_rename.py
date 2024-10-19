@@ -60,13 +60,14 @@ def clean_old_log_entries():
 def ocr_and_extract_text(pdf_path, retry_count=0):
     """Extrahiert"""
     text = ""
-    temp_txt_file = pdf_path.replace('.pdf', '_text.txt')
 
     try:
         # OCR
+        temp_txt_file = pdf_path.replace('.pdf', '_text.txt')
         ocrmypdf.ocr(pdf_path, temp_txt_file, force_ocr=True, sidecar=temp_txt_file)
         with open(temp_txt_file, 'r') as txt_file:
             text = txt_file.read()
+        os.remove(temp_txt_file)
 
         log_message(f"Text erfolgreich extrahiert für Datei {pdf_path}")
     except Exception as e:
@@ -81,9 +82,9 @@ def ocr_and_extract_text(pdf_path, retry_count=0):
     return text
 
 
-# suche fettgedrucktes und Schlüsselwörter
+# fettgedrucktes
 def get_subject_from_text(text):
-    """sucht"""
+    """Sucht"""
     subject = None
 
     try:
@@ -92,7 +93,7 @@ def get_subject_from_text(text):
         # Suche
         for line in lines:
             if re.search(r'akten-\s*geschäftszeichen[:\s]*[a-zA-Z0-9\/\-\.]+', line, re.IGNORECASE):
-                # Extrahiere az
+                # Extrahiere
                 aktenzeichen_line_index = lines.index(line) + 1
                 if aktenzeichen_line_index < len(lines):
                     next_line = lines[aktenzeichen_line_index].strip()
@@ -149,11 +150,10 @@ def process_scan_files(scans_folder):
             subject = get_subject_from_text(text)
 
             if subject:
-                absender = file_name.split('_')[1]  # Absender
-                date = file_name.split('_')[0]  # Datum
-                # Datum
+                absender = file_name.split('_')[1]  # Absender an zweiter Stelle im Dateinamen
+                date = file_name.split('_')[0]  # Datum an erster Stelle im Dateinamen
+                # DatumFormat
                 if re.match(r'\d{8}', date):
-                    new_file_name = f"{absender}_{date}_{subject}.pdf"
                     rename_file(file_path, absender, date, subject)
                 else:
                     log_message(f"Fehler: Datum im falschen Format für {file_name}")
