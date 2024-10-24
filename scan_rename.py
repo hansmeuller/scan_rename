@@ -4,9 +4,9 @@ import re
 import ocrmypdf
 from datetime import datetime, timedelta
 
-# scant current
+# scant im aktuellen Verzeichnis, in dem das Programm liegt
 scans_folder = os.path.dirname(os.path.realpath(__file__))
-# Pfad current
+# Pfad Logdatei im aktuellen Verzeichnis
 log_file_path = os.path.join(scans_folder, "Logeinträge_ScanRename.txt")
 log_file_exists = False
 print(f"Logdatei-pfad: {log_file_path}")
@@ -40,7 +40,7 @@ def log_message(message):
 
 # lösche +=woche
 def clean_old_log_entries():
-    """Löscht einträge +=woche"""
+    """+=woche"""
     if os.path.exists(log_file_path):
         with open(log_file_path, "r") as log_file:
             lines = log_file.readlines()
@@ -56,13 +56,13 @@ def clean_old_log_entries():
                     log_file.write(line)
 
 
-# OCR
+# OCR-Verarbeitung und Text Extraktion mit OCRmyPDF
 def ocr_and_extract_text(pdf_path, retry_count=0):
     """Extrahiert"""
     text = ""
 
     try:
-        # OCR
+        # OCR-Verarbeitung mit OCRmyPDF und Speichern des Texts im Speicher
         temp_txt_file = pdf_path.replace('.pdf', '_text.txt')
         ocrmypdf.ocr(pdf_path, temp_txt_file, force_ocr=True, sidecar=temp_txt_file)
         with open(temp_txt_file, 'r') as txt_file:
@@ -82,7 +82,7 @@ def ocr_and_extract_text(pdf_path, retry_count=0):
     return text
 
 
-# fettgedrucktes
+# suche fettgedrucktes und Schlüsselwörter
 def get_subject_from_text(text):
     """Sucht"""
     subject = None
@@ -90,10 +90,10 @@ def get_subject_from_text(text):
     try:
         lines = text.split("\n")
 
-        # Suche
+        # Suche nach bestimmten Schlüsselwörtern
         for line in lines:
             if re.search(r'akten-\s*geschäftszeichen[:\s]*[a-zA-Z0-9\/\-\.]+', line, re.IGNORECASE):
-                # Extrahiere
+                # Extrahiere das Aktenzeichen, das unterhalb von "Akten- Geschäftszeichen" steht
                 aktenzeichen_line_index = lines.index(line) + 1
                 if aktenzeichen_line_index < len(lines):
                     next_line = lines[aktenzeichen_line_index].strip()
@@ -142,7 +142,7 @@ def process_scan_files(scans_folder):
             file_path = os.path.join(scans_folder, file_name)
             log_message(f"Verarbeite {file_name}...")
 
-            # OCR
+            # OCR-Verarbeitung und Text Extraktion
             text = ocr_and_extract_text(file_path)
             if not text:
                 continue
@@ -152,7 +152,7 @@ def process_scan_files(scans_folder):
             if subject:
                 absender = file_name.split('_')[1]  # Absender an zweiter Stelle im Dateinamen
                 date = file_name.split('_')[0]  # Datum an erster Stelle im Dateinamen
-                # DatumFormat
+                # Sicherstellen, dass das Datum im korrekten Format ist
                 if re.match(r'\d{8}', date):
                     rename_file(file_path, absender, date, subject)
                 else:
@@ -160,7 +160,7 @@ def process_scan_files(scans_folder):
             else:
                 log_message(f"Kein Betreff gefunden für {file_name}.")
 
-            # Loops verhindern
+            # Fehlerhafte Dateien überspringen, um Loops zu verhindern
             if "._" in file_name:
                 log_message(f"Überspringe Datei {file_name} aufgrund eines möglichen Fehlers im PDF-Format.")
                 continue
