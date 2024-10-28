@@ -2,6 +2,7 @@ import time
 import os
 import re
 import ocrmypdf
+import fitz  # PyMuPDF
 from datetime import datetime, timedelta
 
 # scant current
@@ -9,21 +10,15 @@ scans_folder = os.path.dirname(os.path.realpath(__file__))
 # Pfad current
 log_file_path = os.path.join(scans_folder, "Logeinträge_ScanRename.txt")
 log_file_exists = False
-print(f"Logdatei-pfad: {log_file_path}")
 
 
 # Logdatei prüfen/create
 def check_and_create_log_file():
     """create if not exist"""
     global log_file_exists
-    print(f"prüfe ob logdatei existiert pfad: {log_file_path}")
     if not os.path.exists(log_file_path):
-        print("erstelle logdatei")
         with open(log_file_path, "w") as log_file:
-            print("log erstellt")
             log_file.write(f"Logdatei erstellt am {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-    else:
-        print("exist")
     log_file_exists = True
 
 
@@ -56,7 +51,7 @@ def clean_old_log_entries():
                     log_file.write(line)
 
 
-# Extraktion OCRmyPDF
+# OCR
 def ocr_and_extract_text(pdf_path, retry_count=0):
     """Extrahiert"""
     text = ""
@@ -64,12 +59,13 @@ def ocr_and_extract_text(pdf_path, retry_count=0):
     try:
         # OCR
         temp_txt_file = pdf_path.replace('.pdf', '_text.txt')
-        ocrmypdf.ocr(pdf_path, None, force_ocr=True, sidecar=temp_txt_file)
+        ocrmypdf.ocr(pdf_path, pdf_path, force_ocr=True, sidecar=temp_txt_file)
         with open(temp_txt_file, 'r') as txt_file:
             text = txt_file.read()
         os.remove(temp_txt_file)
 
         log_message(f"Text erfolgreich extrahiert für Datei {pdf_path}")
+        log_message(f"Extrahierter Text: {text[:500]}...")  # 500 Zeichen
     except Exception as e:
         if retry_count < 3:
             log_message(f"Fehler bei der Textverarbeitung von {pdf_path}: {e}. Wiederhole ({retry_count + 1}/3)")
@@ -82,30 +78,46 @@ def ocr_and_extract_text(pdf_path, retry_count=0):
     return text
 
 
-# fettgedrucktes
-def get_subject_from_text(text):
+# Suche
+def extract_bold_text_from_pdf(pdf_path):
+    """Extrahiert"""
+    bold_text = []
+    try:
+        with fitz.open(pdf_path) as pdf_document:
+            for page_number in range(len(pdf_document)):
+                page = pdf_document.load_page(page_number)
+                blocks = page.get_text("dict")['blocks']
+                for block in blocks:
+                    for line in block.get("lines", []):
+                        for span in line.get("spans", []):
+                            if span.get("flags", 0) & 2:  # Flag 2
+                                bold_text.append(span.get("text", "").strip())
+    except Exception as e:
+        log_message(f"Fehler beim Extrahieren von fettgedrucktem Text aus {pdf_path}: {e}")
+
+    return " ".join(bold_text)
+
+
+# suche
+def get_subject_from_text(text, pdf_path):
     """Sucht"""
     subject = None
 
     try:
-        lines = text.split("\n")
+        # Fettgedrucktes
+        bold_text = extract_bold_text_from_pdf(pdf_path)
+        if bold_text:
+            log_message(f"Gefundener fettgedruckter Text: {bold_text}")
+            subject = bold_text
 
-        # Suche nach bestimmten Schlüsselwörtern
-        for line in lines:
-            if re.search(r'akten-\s*geschäftszeichen[:\s]*[a-zA-Z0-9\/\-\.]+', line, re.IGNORECASE):
-                # Extrahiert unterhalb az
-                aktenzeichen_line_index = lines.index(line) + 1
-                if aktenzeichen_line_index < len(lines):
-                    next_line = lines[aktenzeichen_line_index].strip()
-                    date_match = re.search(r'\d{2}\.\d{2}\.\d{4}', next_line)
-                    if date_match:
-                        extracted_string = next_line.split(date_match.group())[0].strip()
-                        log_message(f"String09: {extracted_string}")
-                        subject = f"Aktenzeichen_{extracted_string}"
-                break
-            elif re.search(r'gericht|beschluss|urteil', line, re.IGNORECASE):
-                subject = line.strip()
-                break
+        # fettgedruckter Text
+        if not subject:
+            lines = text.split("\n")
+            for line in lines:
+                if re.search(r'gericht|beschluss|urteil', line, re.IGNORECASE):
+                    subject = line.strip()
+                    log_message(f"Gefundener Betreff: {subject}")
+                    break
     except Exception as e:
         log_message(f"Fehler beim Verarbeiten des Texts: {e}")
 
@@ -120,17 +132,18 @@ def rename_file(old_path, absender, date, subject):
     new_file_name = sanitize_filename(f"{absender}_{date}_{subject}.{file_extension}")
     new_file_path = os.path.join(directory, new_file_name)
 
-    if not os.path.exists(new_file_path):
-        os.rename(old_path, new_file_path)
-        log_message(f"Datei umbenannt von {old_file_name} zu {new_file_name}")
-    else:
-        log_message(f"Fehler: Die Datei {new_file_path} existiert bereits.")
+    if old_path != new_file_path:
+        if not os.path.exists(new_file_path):
+            os.rename(old_path, new_file_path)
+            log_message(f"Datei umbenannt von {old_file_name} zu {new_file_name}")
+        else:
+            log_message(f"Fehler: Die Datei {new_file_path} existiert bereits.")
 
 
 # Dateinamen bereinigen
 def sanitize_filename(filename):
     """Entfernt"""
-    return re.sub(r'[\/\:*?"<>|]', '_', filename)
+    return re.sub(r'[/\:*?"<>|]', '_', filename)
 
 
 # Hauptprozess
@@ -147,12 +160,12 @@ def process_scan_files(scans_folder):
             if not text:
                 continue
 
-            subject = get_subject_from_text(text)
+            subject = get_subject_from_text(text, file_path)
 
             if subject:
-                absender = file_name.split('_')[1]  # Absender 2te
-                date = file_name.split('_')[0]  # Datum first
-                # Datum
+                absender = file_name.split('_')[1]  # Absender an zweiter Stelle im Dateinamen
+                date = file_name.split('_')[0]  # Datum an erster Stelle im Dateinamen
+                # DatumFormat
                 if re.match(r'\d{8}', date):
                     rename_file(file_path, absender, date, subject)
                 else:
@@ -166,7 +179,7 @@ def process_scan_files(scans_folder):
                 continue
 
 
-# Hauptverarbeitung
+# Main
 def main():
     """Main"""
     try:
