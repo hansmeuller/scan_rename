@@ -1,143 +1,153 @@
 import os
 import fitz  # PyMuPDF
 import ocrmypdf
-from datetime import datetime, timedelta
-import re
-import subprocess
 import shutil
+from datetime import datetime
+import re
 
 # current
 scans_folder = os.path.dirname(os.path.realpath(__file__))
-# current
-log_file_path = os.path.join(scans_folder, "Logeinträge_TestExtraction.txt")
+log_file_path = os.path.join(scans_folder, "Logeinträge.txt")
 
 
-ABSENDER_TOP_START_CM = 3
-ABSENDER_TOP_END_CM = 3.5
-BETREFF_TOP_CM = 7.5
-KNICKFALTE_TOP_CM = 6.5
-AKTENZEICHEN_LEFT_CM = 6
+PAGE_HEIGHT = 838.0
+PAGE_WIDTH = 594.0
 
+# Positionen
+ABSENDER_TOP_START = 3 / 2.54 * 96  # 3 cm von oben
+ABSENDER_TOP_END = 4 / 2.54 * 96  # 4 cm von oben
+BETREFF_TOP = 7.5 / 2.54 * 96  # 7,5 cm von oben
+KNICKFALTE_TOP = 6.5 / 2.54 * 96  # 6,5 cm von oben
+AKTENZEICHEN_LEFT = 6 / 2.54 * 96  # 6 cm von links
 
-def cm_to_points(cm):
-    return (cm / 2.54) * 96
+# nope
+IGNORE_WORDS = {"Postanschrift", "Postzentrum"}
+IGNORE_REGEX = re.compile(r"^\d{5}$")  # PLZ (5 Ziffern)
 
 # Log
 def log_message(message):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    with open(log_file_path, "a") as log_file:
+    with open(log_file_path, "a", encoding="utf-8") as log_file:
         log_file.write(f"{timestamp} - {message}\n")
 
-# delete>=2tage
-def clean_old_logs():
-    if os.path.exists(log_file_path):
-        with open(log_file_path, "r") as log_file:
-            lines = log_file.readlines()
-        cutoff_date = datetime.now() - timedelta(days=2)
-        with open(log_file_path, "w") as log_file:
-            for line in lines:
-                try:
-                    log_date = datetime.strptime(line.split(" - ")[0], "%Y-%m-%d %H:%M:%S")
-                    if log_date > cutoff_date:
-                        log_file.write(line)
-                except ValueError:
-                    log_file.write(line)
-
-# Verschlüsselung entfernen
-def create_decrypted_copy(pdf_path):
-    decrypted_path = pdf_path.replace(".pdf", "_decrypted.pdf")
-    if not os.path.exists(decrypted_path):
-        subprocess.run(["qpdf", "--decrypt", pdf_path, decrypted_path])
-    return decrypted_path
-
 # OCR
-def apply_ocr_to_pdf(pdf_path):
+def apply_ocr_to_pdf(file_path):
     try:
-        ocrmypdf.ocr(pdf_path, pdf_path, skip_text=True, output_type="pdf")
-        log_message(f"OCR erfolgreich angewendet auf {pdf_path}")
+        ocrmypdf.ocr(file_path, file_path, force_ocr=True)
+        log_message(f"OCR erfolgreich angewendet auf {file_path}")
     except Exception as e:
-        log_message(f"OCR-Fehler für {pdf_path}: {e}")
+        log_message(f"Fehler beim Anwenden von OCR auf {file_path}: {e}")
 
-# Extraktion
-def extract_sender_and_subject(pdf_path):
+# Entschlüsseln
+def decrypt_pdf(file_path):
+    decrypted_path = file_path.replace(".pdf", "_temp_decrypted.pdf")
     try:
-        with fitz.open(pdf_path) as pdf_document:
-            page = pdf_document.load_page(0)  # Nur erste Seite
+        command = ["qpdf", "--decrypt", file_path, decrypted_path]
+        result = os.system(" ".join(command))
+        if result == 0:
+            shutil.move(decrypted_path, file_path)
+            log_message(f"PDF erfolgreich entschlüsselt: {file_path}")
+        else:
+            raise Exception("Entschlüsselung fehlgeschlagen.")
+    except Exception as e:
+        log_message(f"Fehler beim Entschlüsseln von {file_path}: {e}")
+        if os.path.exists(decrypted_path):
+            os.remove(decrypted_path)
+
+# az extrahieren
+def extract_aktenzeichen(words):
+    for i, word in enumerate(words):
+        if word[4].lower() == "bitte" and i + 2 < len(words):
+            if words[i + 1][4].lower() == "bei" and words[i + 2][4].lower() == "antwort":
+                line_y = words[i + 2][3]
+                aktenzeichen = []
+                for next_word in words[i + 3 :]:
+                    if next_word[1] > line_y + 10:  # 2 Zeilen darunter
+                        aktenzeichen.append(next_word[4])
+                        if len("".join(aktenzeichen).replace(" ", "")) >= 10:
+                            return "".join(aktenzeichen)[:10]
+    return None
+
+# abs spezial
+def extract_sender(words):
+    absender = []
+    found_plz_line = None
+    for w in words:
+        if ABSENDER_TOP_START <= w[1] <= ABSENDER_TOP_END and not IGNORE_REGEX.match(w[4]) and w[4] not in IGNORE_WORDS:
+            absender.append(w[4])
+
+
+        if w[1] <= KNICKFALTE_TOP / 2 and IGNORE_REGEX.match(w[4]):
+            if found_plz_line is None or w[1] < found_plz_line:
+                found_plz_line = w[1]
+                absender = [w[4]]
+
+    absender_text = " ".join(absender) if absender else "Keine Absenderangabe erkennbar"
+    log_message(f"Gefundene mögliche Absender: {absender_text}")
+    return absender_text
+
+# betreff extrahieren
+def extract_subject(words):
+    betreff = []
+    for w in words:
+        if abs(w[1] - BETREFF_TOP) <= 10 and w[0] < PAGE_WIDTH / 2:  # Linksseitig begrenzt
+            betreff.append(w[4])
+    return " ".join(betreff) if betreff else "Kein Betreff gefunden"
+
+# extrahieren
+def extract_sender_and_subject(file_path):
+    try:
+        with fitz.open(file_path) as pdf_document:
+            page = pdf_document.load_page(0)
             words = page.get_text("words")
 
-            # Ktoerkennung
-            page_height = page.rect.height
-            if page_height < 400:
-                log_message(f"Kontoauszug erkannt in {pdf_path}")
-                absender = extract_sender(words, page_height)
-                log_message(f"Extrahierter Absender in {pdf_path}: {' '.join(absender) if absender else 'Kein Absender gefunden'}")
-                log_message(f"Betreff für {pdf_path}: Kontoauszug")
-                return
+            # Absender
+            absender_text = extract_sender(words)
 
-            absender = extract_sender(words, page_height)
-            betreff = []
-            aktenzeichen = extract_aktenzeichen(words, page_height)
-
-            # Betreff
-            if aktenzeichen:
-                betreff = [aktenzeichen]
-                log_message(f"Gefundenes Aktenzeichen in {pdf_path}: {aktenzeichen}")
+            # extrahieren
+            if page.rect.height < 400:  # Kontoauszug
+                betreff_text = "Kontoauszug"
             else:
-                betreff = extract_betreff(words, page_height)
-                log_message(f"Gefundener Betreff in {pdf_path}: {' '.join(betreff) if betreff else 'Kein Betreff gefunden'}")
+                betreff_text = extract_subject(words)
 
-            log_message(f"Gefundener Absender in {pdf_path}: {' '.join(absender) if absender else 'Kein Absender gefunden'}")
+            log_message(f"Gefundener Betreff in {file_path}: {betreff_text}")
+
+            # Az
+            aktenzeichen = extract_aktenzeichen(words)
+            if aktenzeichen:
+                log_message(f"Gefundenes Aktenzeichen in {file_path}: {aktenzeichen}")
 
     except Exception as e:
-        log_message(f"Fehler beim Extrahieren des Absenders, Betreffs und Aktenzeichens aus {pdf_path}: {e}")
+        log_message(f"Fehler beim Extrahieren von Absender und Betreff aus {file_path}: {e}")
 
-# Extraktion
-def extract_sender(words, page_height):
-    absender = []
-    top_start = cm_to_points(ABSENDER_TOP_START_CM)
-    top_end = cm_to_points(ABSENDER_TOP_END_CM)
-    ignore_list = ["Postanschrift", "Postzentrum"]
-    for w in words:
-        if top_start <= w[1] <= top_end and w[4] not in ignore_list:
-            absender.append(w[4])
-    return absender
-
-# dynamische Position
-def extract_betreff(words, page_height):
-    betreff = []
-    betreff_top = cm_to_points(BETREFF_TOP_CM)
-    for w in words:
-        if abs(w[1] - betreff_top) <= 10:
-            betreff.append(w[4])
-    return betreff[:5]  # Maximal 5 Wörter
-
-# Extraktion
-def extract_aktenzeichen(words, page_height):
-    aktenzeichen = []
-    for i, w in enumerate(words):
-        if w[4].lower() == "bitte" and i + 3 < len(words) and words[i + 1][4].lower() == "bei" and words[i + 2][4].lower() == "antwort" and words[i + 3][4].lower() == "angeben":
-            line_y = words[i + 3][3]
-            for next_word in words[i+4:]:
-                if next_word[1] > line_y + 10:
-                    aktenzeichen.append(next_word[4])
-                    if len(''.join(aktenzeichen).replace(" ", "")) >= 10:
-                        return ''.join(aktenzeichen)[:10]  # Maximal 10 Zeichen
-    return None
+# umbenennen
+def rename_file(file_path, absender, betreff, datum):
+    try:
+        absender_text = "_".join(absender.split()) if absender else "Unbekannt"
+        betreff_text = "_".join(betreff.split()) if betreff else "Unbekannt"
+        new_file_name = f"{absender_text}_{datum}_{betreff_text}.pdf"
+        new_file_path = os.path.join(os.path.dirname(file_path), new_file_name)
+        os.rename(file_path, new_file_path)
+        log_message(f"Datei umbenannt in: {new_file_path}")
+    except Exception as e:
+        log_message(f"Fehler beim Umbenennen von {file_path}: {e}")
 
 # mainmain
 def process_pdfs(scans_folder):
-    if not os.path.exists(log_file_path):
-        with open(log_file_path, "a") as log_file:
-            log_file.write("Logdatei erstellt\n")
-    clean_old_logs()
     for file_name in os.listdir(scans_folder):
-        if file_name.endswith(".pdf") and not file_name.startswith("._"):
+        if file_name.endswith(".pdf"):
             file_path = os.path.join(scans_folder, file_name)
             log_message(f"Starte Verarbeitung für Datei: {file_path}")
-            decrypted_path = create_decrypted_copy(file_path)
-            apply_ocr_to_pdf(decrypted_path)
-            extract_sender_and_subject(decrypted_path)
 
-# maiin
+            # Entschlüsseln
+            decrypt_pdf(file_path)
+
+            # OCR
+            apply_ocr_to_pdf(file_path)
+
+            # Absender und Betreff
+            extract_sender_and_subject(file_path)
+
+# main
 if __name__ == "__main__":
     process_pdfs(scans_folder)
