@@ -41,13 +41,33 @@ def normalize_spacing(text):
     return re.sub(r"\s{2,}", " ", text).strip()
 
 
-def rename_file(original_path, sender, date, subject):
+def extract_or_generate_date(file_name):
+    current_year = datetime.now().year
+    current_date = datetime.now().strftime("%Y%m%d")
+
+    match = re.search(r"\b\d{8}\b", file_name)
+    if match:
+        potential_date = match.group()
+        year = int(potential_date[:4])
+        if current_year - 1 <= year <= current_year + 1:
+            return potential_date
+
+    log_message(f"Kein gültiges Datum im Dateinamen gefunden: {file_name}. Verwende aktuelles Datum: {current_date}")
+    return current_date
+
+
+def rename_file_with_date_fallback(original_path, sender, subject):
     try:
         folder = os.path.dirname(original_path)
-        sender = normalize_spacing(sender.replace(" ", "_"))
-        subject = normalize_spacing(subject.replace(" ", "_"))
+        file_name = os.path.basename(original_path)
+
+        date = extract_or_generate_date(file_name)
+
+        sender = normalize_spacing(sender.replace(" ", "_")).replace("__", "_")
+        subject = normalize_spacing(subject.replace(" ", "_")).replace("__", "_")
 
         new_name = f"{sender}_{date}_{subject}.pdf"
+        new_name = new_name.replace("__", "_")
         new_path = os.path.join(folder, new_name)
 
         if original_path != new_path:
@@ -66,12 +86,6 @@ def process_pdf(file_path):
     try:
         file_name = os.path.basename(file_path)
 
-        match = re.search(r"\b\d{8}\b", file_name)
-        if not match:
-            log_message(f"Kein gültiges Datum im Dateinamen gefunden: {file_name}")
-            return
-        date = match.group()
-
         images = convert_from_path(file_path, dpi=300, first_page=1, last_page=1)
         if not images:
             log_message(f"Keine Bilder extrahiert für {file_path}")
@@ -86,7 +100,7 @@ def process_pdf(file_path):
 
         subject_or_case = extract_subject_or_case_number(image, dpi, file_name)
 
-        rename_file(file_path, sender, date, subject_or_case)
+        rename_file_with_date_fallback(file_path, sender, subject_or_case)
 
     except Exception as e:
         log_message(f"Fehler bei der Verarbeitung von {file_path}: {e}")
@@ -147,9 +161,9 @@ def extract_case_number(results):
         if any(line_text.startswith(keyword) for keyword in AKTENZEICHEN_KEYWORDS):
             log_message(f"Keyword für Aktenzeichen gefunden: {line_text}")
 
-            if idx + 3 < len(results):
+            if idx + 3 < len(results):  # Drei Zeilen tiefer
                 aktenzeichen_line = normalize_spacing(results[idx + 3][1].strip())
-                return f"Aktenzeichen: {aktenzeichen_line[:11]}"
+                return f"{aktenzeichen_line[:11]}"  # Maximal 11 Zeichen
 
     return None
 
