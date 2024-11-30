@@ -6,28 +6,34 @@ import numpy as np
 from datetime import datetime
 import re
 
+# OCR initialisieren
 reader = easyocr.Reader(['de'], gpu=False)
 
+# Fenster
 WINDOW_LEFT_CM = 2
 WINDOW_TOP_CM = 4.5
 WINDOW_WIDTH_CM = 9
 WINDOW_HEIGHT_CM = 4.5
 
+# Knickfalte
 KNICKFALTE_TOP_CM = 10
 KNICKFALTE_HEIGHT_CM = 2
 
+# Keywords
 AKTENZEICHEN_KEYWORDS = ["Bitte bei"]
 AUSSCHLUSSLISTE = ["Postfach", "PLZ", "Postzentrum"]
 ZAHLEN_REGEX = r"\b\d+\b"
 OCR_CORRECTIONS = {"unaedeckte": "ungedeckte"}
 
 
+# Log
 def log_message(message):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     with open("Logeinträge.txt", "a", encoding="utf-8") as log_file:
         log_file.write(f"{timestamp} - {message}\n")
 
 
+# kill
 def delete_temp_png(file_path):
     try:
         if os.path.exists(file_path):
@@ -37,86 +43,15 @@ def delete_temp_png(file_path):
         log_message(f"Fehler beim Löschen der PNG: {e}")
 
 
+# max two
 def normalize_spacing(text):
     return re.sub(r"\s{2,}", " ", text).strip()
 
 
-def extract_or_generate_date(file_name):
-    current_year = datetime.now().year
-    current_date = datetime.now().strftime("%Y%m%d")
-
-    match = re.search(r"\b\d{8}\b", file_name)
-    if match:
-        potential_date = match.group()
-        year = int(potential_date[:4])
-        if current_year - 1 <= year <= current_year + 1:
-            return potential_date
-
-    log_message(f"Kein gültiges Datum im Dateinamen gefunden: {file_name}. Verwende aktuelles Datum: {current_date}")
-    return current_date
-
-
-def rename_file_with_date_fallback(original_path, sender, subject):
-    try:
-        folder = os.path.dirname(original_path)
-        file_name = os.path.basename(original_path)
-
-        date = extract_or_generate_date(file_name)
-
-        sender = normalize_spacing(sender.replace(" ", "_")).replace("__", "_")
-        subject = normalize_spacing(subject.replace(" ", "_")).replace("__", "_")
-
-        new_name = f"{sender}_{date}_{subject}.pdf"
-        new_name = new_name.replace("__", "_")
-        new_path = os.path.join(folder, new_name)
-
-        if original_path != new_path:
-            os.rename(original_path, new_path)
-            log_message(f"Datei umbenannt: {original_path} -> {new_path}")
-        else:
-            log_message(f"Keine Umbenennung erforderlich: {original_path}")
-
-    except FileNotFoundError:
-        log_message(f"Fehler beim Umbenennen der Datei {original_path}: Datei nicht gefunden.")
-    except Exception as e:
-        log_message(f"Fehler beim Umbenennen der Datei {original_path}: {e}")
-
-
-def process_pdf(file_path):
-    try:
-        file_name = os.path.basename(file_path)
-
-        images = convert_from_path(file_path, dpi=300, first_page=1, last_page=1)
-        if not images:
-            log_message(f"Keine Bilder extrahiert für {file_path}")
-            return
-
-        image = images[0]
-        dpi = 300
-
-        sender_results = extract_text_from_window(image, dpi, file_name, top_cm=WINDOW_TOP_CM,
-                                                  height_cm=WINDOW_HEIGHT_CM)
-        sender = extract_sender(sender_results)
-
-        subject_or_case = extract_subject_or_case_number(image, dpi, file_name)
-
-        rename_file_with_date_fallback(file_path, sender, subject_or_case)
-
-    except Exception as e:
-        log_message(f"Fehler bei der Verarbeitung von {file_path}: {e}")
-
-
-def process_pdfs(folder):
-    for file_name in os.listdir(folder):
-        if file_name.endswith(".pdf"):
-            file_path = os.path.join(folder, file_name)
-            log_message(f"Starte Verarbeitung für Datei: {file_path}")
-            process_pdf(file_path)
-
-
+# extrahieren
 def extract_text_from_window(image, dpi, file_name, top_cm, height_cm):
     try:
-        pixels_per_cm = dpi / 2.54
+        pixels_per_cm = dpi / 2.54  # 1 Zoll = 2.54 cm
         left = int(WINDOW_LEFT_CM * pixels_per_cm)
         right = int((WINDOW_LEFT_CM + WINDOW_WIDTH_CM) * pixels_per_cm)
         top = int(top_cm * pixels_per_cm)
@@ -139,6 +74,7 @@ def extract_text_from_window(image, dpi, file_name, top_cm, height_cm):
         return []
 
 
+# Absender
 def extract_sender(results):
     if results:
         first_line = results[0][1]
@@ -150,44 +86,102 @@ def extract_sender(results):
                 break
         first_line = re.sub(ZAHLEN_REGEX, "", first_line)
         first_line = normalize_spacing(first_line)
-        return first_line
-    return "Unbekannter_Absender"
+        first_line = first_line.replace("_", "").strip()
+        return f"Absender: {first_line}"
+    return "Kein Absender gefunden"
 
 
+# az extrahieren
 def extract_case_number(results):
     for idx, result in enumerate(results):
         line_text = normalize_spacing(result[1].strip())
 
+        # if Keywords
         if any(line_text.startswith(keyword) for keyword in AKTENZEICHEN_KEYWORDS):
             log_message(f"Keyword für Aktenzeichen gefunden: {line_text}")
 
-            if idx + 3 < len(results):  # Drei Zeilen tiefer
+            if idx + 3 < len(results):
                 aktenzeichen_line = normalize_spacing(results[idx + 3][1].strip())
-                return f"{aktenzeichen_line[:11]}"  # Maximal 11 Zeichen
+                return f"Aktenzeichen: {aktenzeichen_line[:13]}"
 
     return None
 
 
+# betreff
 def extract_subject_or_case_number(image, dpi, file_name):
-    results = extract_text_from_window(image, dpi, file_name, top_cm=KNICKFALTE_TOP_CM, height_cm=KNICKFALTE_HEIGHT_CM)
+    results = extract_text_from_window(image, dpi, file_name, KNICKFALTE_TOP_CM, KNICKFALTE_HEIGHT_CM)
     if not results:
-        return "Kein_Betreff"
+        return "Betreff: Kein relevanter Eintrag gefunden"
 
     for idx, result in enumerate(results):
         line_text = normalize_spacing(result[1].strip())
 
+        # OCR korrektur
         for key, correction in OCR_CORRECTIONS.items():
             line_text = line_text.replace(key, correction)
 
+        # extrahieren if Keywords
         case_number = extract_case_number(results)
         if case_number:
             return case_number
 
+        # Betreff extrahieren
         if idx == 0:
-            return f"{' '.join(line_text.split()[:5])}"  # Maximal 5 Worte
+            return f"Betreff: {' '.join(line_text.split()[:5])}"  # Maximal 5 Worte
 
-    return "Kein_Betreff"
+    return "Betreff: Kein relevanter Eintrag gefunden"
 
 
+# Kontoauszug prüfen
+def is_kontoauszug(image):
+    if image.height < 1500:
+        return True
+    return False
+
+
+# PDF verarbeiten
+def process_pdf(file_path):
+    try:
+        file_name = os.path.basename(file_path)
+        images = convert_from_path(file_path, dpi=300, first_page=1, last_page=1)
+        if not images:
+            log_message(f"Keine Bilder extrahiert für {file_path}")
+            return
+
+        dpi = 300
+        image = images[0]
+
+        # erkennen
+        if is_kontoauszug(image):
+            log_message(f"Dokument erkannt als Kontoauszug: {file_path}")
+            log_message(f"Betreff: Kontoauszug")
+            sender_results = extract_text_from_window(image, dpi, file_name, WINDOW_TOP_CM, WINDOW_HEIGHT_CM)
+            sender = extract_sender(sender_results)
+            log_message(f"Gefundener Absender in {file_path}: {sender}")
+            return
+
+        # extrahieren
+        sender_results = extract_text_from_window(image, dpi, file_name, WINDOW_TOP_CM, WINDOW_HEIGHT_CM)
+        sender = extract_sender(sender_results)
+        log_message(f"Gefundener Absender in {file_path}: {sender}")
+
+        # extrahieren
+        subject_or_case = extract_subject_or_case_number(image, dpi, file_name)
+        log_message(f"Gefundener Betreff oder Aktenzeichen in {file_path}: {subject_or_case}")
+
+    except Exception as e:
+        log_message(f"Fehler bei der Verarbeitung von {file_path}: {e}")
+
+
+# verarbeiten
+def process_pdfs(folder):
+    for file_name in os.listdir(folder):
+        if file_name.endswith(".pdf"):
+            file_path = os.path.join(folder, file_name)
+            log_message(f"Starte Verarbeitung für Datei: {file_path}")
+            process_pdf(file_path)
+
+
+# main
 if __name__ == "__main__":
     process_pdfs(os.getcwd())
