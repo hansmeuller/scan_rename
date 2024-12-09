@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="89534ab4-dcb0-4dc3-bab1-a174d246f935" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/scan_rename.py" beforeDir="false" afterPath="$PROJECT_DIR$/scan_rename.py" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Python Script" />
+      </list>
+    </option>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 1
+}</component>
+  <component name="ProjectId" id="2mfSAHOmPTMRMdn2Aq0Hn2tiK4F" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.pluginManager&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  },
+  &quot;keyToStringList&quot;: {
+    &quot;com.intellij.ide.scratch.ScratchImplUtil$2/New Scratch File&quot;: [
+      &quot;Python&quot;
+    ]
+  }
+}</component>
+  <component name="SharedIndexes">
+    <attachedChunks>
+      <set>
+        <option value="bundled-js-predefined-1d06a55b98c1-0b3e54e931b4-JavaScript-PY-241.18034.82" />
+        <option value="bundled-python-sdk-975db3bf15a3-2767605e8bc2-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-241.18034.82" />
+      </set>
+    </attachedChunks>
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="89534ab4-dcb0-4dc3-bab1-a174d246f935" name="Changes" comment="" />
+      <created>1727465992518</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1727465992518</updated>
+      <workItem from="1727465995382" duration="2526000" />
+      <workItem from="1727587143703" duration="10382000" />
+      <workItem from="1727680212001" duration="15464000" />
+      <workItem from="1727720407957" duration="1369000" />
+      <workItem from="1727767900006" duration="5261000" />
+      <workItem from="1728032134431" duration="1754000" />
+      <workItem from="1728291711509" duration="6201000" />
+      <workItem from="1728390468366" duration="4048000" />
+      <workItem from="1728417758564" duration="24000" />
+      <workItem from="1728550622762" duration="722000" />
+      <workItem from="1728671293626" duration="32000" />
+      <workItem from="1729025215779" duration="1881000" />
+      <workItem from="1729243702746" duration="1274000" />
+      <workItem from="1729751373915" duration="705000" />
+      <workItem from="1730105528646" duration="54000" />
+      <workItem from="1730225893454" duration="40000" />
+      <workItem from="1730274011691" duration="2642000" />
+      <workItem from="1730708829494" duration="1225000" />
+      <workItem from="1731020720683" duration="17000" />
+      <workItem from="1731317613442" duration="643000" />
+      <workItem from="1731581261091" duration="33000" />
+      <workItem from="1731768710006" duration="170000" />
+      <workItem from="1732050636292" duration="181000" />
+      <workItem from="1732193861069" duration="865000" />
+      <workItem from="1732301096916" duration="10000" />
+      <workItem from="1732645220486" duration="2318000" />
+      <workItem from="1732947670742" duration="17000" />
+      <workItem from="1733776989990" duration="148000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+</project>

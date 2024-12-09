@@ -48,7 +48,7 @@ def normalize_spacing(text):
     return re.sub(r"\s{2,}", " ", text).strip()
 
 
-# extrahieren
+# extrahieren im brieffenster
 def extract_text_from_window(image, dpi, file_name, top_cm, height_cm):
     try:
         pixels_per_cm = dpi / 2.54  # 1 Zoll = 2.54 cm
@@ -74,7 +74,7 @@ def extract_text_from_window(image, dpi, file_name, top_cm, height_cm):
         return []
 
 
-# Absender
+# absender
 def extract_sender(results):
     if results:
         first_line = results[0][1]
@@ -129,10 +129,10 @@ def extract_subject_or_case_number(image, dpi, file_name):
         if idx == 0:
             return f"Betreff: {' '.join(line_text.split()[:5])}"  # Maximal 5 Worte
 
-    return "Betreff: Kein relevanter Eintrag gefunden"
+    return "Betreff: Eintrag gefunden"
 
 
-# Kontoauszug prüfen
+# auf kontoauszug prüfen / postkarten grösse prüfen
 def is_kontoauszug(image):
     if image.height < 1500:
         return True
