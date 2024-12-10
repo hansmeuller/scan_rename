@@ -127,7 +127,7 @@ def extract_subject_or_case_number(image, dpi, file_name):
 
         # Betreff extrahieren
         if idx == 0:
-            return f"Betreff: {' '.join(line_text.split()[:5])}"  # Maximal 5 Worte
+            return f"Betreff: {' '.join(line_text.split()[:5])}"  # five words
 
     return "Betreff: Eintrag gefunden"
 
