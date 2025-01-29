@@ -59,7 +59,7 @@ def get_unique_filename(file_path):
     """
     check for another
     """
-    base, ext = os.path.splitext(file_path)  
+    base, ext = os.path.splitext(file_path)
     counter = 1
 
     # if dateiname füge eine Nummer hinzu
