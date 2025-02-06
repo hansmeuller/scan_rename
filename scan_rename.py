@@ -7,7 +7,7 @@ from datetime import datetime
 import re
 from PyPDF2 import PdfReader
 
-# initialisieren
+# init
 reader = easyocr.Reader(['de'], gpu=False)
 
 # fenster
@@ -27,7 +27,7 @@ ZAHLEN_REGEX = r"\b\d+\b"
 OCR_CORRECTIONS = {"unaedeckte": "ungedeckte"}
 
 
-# Log
+# lognachrichten mit zeitstempel
 def log_message(message):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     with open("Logeinträge.txt", "a", encoding="utf-8") as log_file:
