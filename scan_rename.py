@@ -34,7 +34,7 @@ def log_message(message):
         log_file.write(f"{timestamp} - {message}\n")
 
 
-# PNG löschen
+# png löschen
 def delete_temp_png(file_path):
     try:
         if os.path.exists(file_path):
