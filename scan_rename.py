@@ -249,3 +249,6 @@ def process_pdfs(folder):
 if __name__ == "__main__":
     folder_to_process = os.getcwd()  # current
     process_pdfs(folder_to_process)
+
+# todo:
+    #umschreiben 
