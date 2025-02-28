@@ -228,7 +228,7 @@ def process_pdf(file_path):
         # pink fluffy unicorn
         unique_file_path = get_unique_filename(new_file_path)
 
-        # umbenennen
+        # rename
         os.rename(file_path, unique_file_path)
         log_message(f"Datei umbenannt: {file_path} -> {unique_file_path}")
 
