@@ -179,7 +179,7 @@ def extract_creation_date(file_path):
             match = re.search(r"D:(\d{4})(\d{2})(\d{2})", creation_date)
             if match:
                 return f"{match.group(1)}{match.group(2)}{match.group(3)}"
-        return "Unbekannt Datum"
+        return "Unbekanntes Datum"
     except Exception as e:
         log_message(f"Fehler bei der Extraktion des Erstelldatums: {e}")
         return "Unbekanntes Datum"
