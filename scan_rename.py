@@ -213,7 +213,7 @@ def process_pdf(file_path):
 
             # betreff az extrahieren
             subject_or_case = extract_subject_or_case_number(image, dpi, file_name)
-            log_message(f"Gefundener Betreff oder Aktenzeichen in {file_path}: {subject_or_case}")
+            log_message(f"gefundener betreff oder az in {file_path}: {subject_or_case}")
 
         # date extrahieren
         creation_date = extract_creation_date(file_path)
