@@ -230,10 +230,10 @@ def process_pdf(file_path):
 
         # rename
         os.rename(file_path, unique_file_path)
-        log_message(f"Datei umbenannt: {file_path} -> {unique_file_path}")
+        log_message(f"umbenannt: {file_path} -> {unique_file_path}")
 
     except Exception as e:
-        log_message(f"Fehler bei der Verarbeitung von {file_path}: {e}")
+        log_message(f"fail bei {file_path}: {e}")
 
 
 # current
