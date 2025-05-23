@@ -130,7 +130,7 @@ def extract_case_number(results):
                     extracted_case_numbers.append(aktenzeichen_line[:13])  # max 13 Zeichen
 
     if extracted_case_numbers:
-        log_message(f"Alle extrahierten Aktenzeichen: {extracted_case_numbers}")
+        log_message(f"extrahierte az: {extracted_case_numbers}")
         return max(extracted_case_numbers, key=len)  # längste az auswählen
 
     return None
@@ -140,7 +140,7 @@ def extract_case_number(results):
 def extract_subject_or_case_number(image, dpi, file_name):
     results = extract_text_from_window(image, dpi, file_name, KNICKFALTE_TOP_CM, KNICKFALTE_HEIGHT_CM)
     if not results:
-        return "Kein Betreff"
+        return "kein betreff"
 
     for idx, result in enumerate(results):
         line_text = normalize_spacing(result[1].strip())
@@ -179,10 +179,10 @@ def extract_creation_date(file_path):
             match = re.search(r"D:(\d{4})(\d{2})(\d{2})", creation_date)
             if match:
                 return f"{match.group(1)}{match.group(2)}{match.group(3)}"
-        return "Unbekanntes Datum"
+        return "unknown date"
     except Exception as e:
         log_message(f"Fehler metadatum: {e}")
-        return "Datum unbekannt"
+        return "date unbekannt"
 
 
 # verarbeiten
