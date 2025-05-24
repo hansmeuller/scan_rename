@@ -39,7 +39,7 @@ def delete_temp_png(file_path):
     try:
         if os.path.exists(file_path):
             os.remove(file_path)
-            log_message(f"Temporäre Datei gelöscht: {file_path}")
+            log_message(f"temp gelöscht: {file_path}")
     except Exception as e:
         log_message(f"Fehler beim Löschen der PNG: {e}")
 
@@ -191,7 +191,7 @@ def process_pdf(file_path):
         file_name = os.path.basename(file_path)
         images = convert_from_path(file_path, dpi=300, first_page=1, last_page=1)
         if not images:
-            log_message(f"keine pics extrahiert für {file_path}")
+            log_message(f"keine pics extrahiert in {file_path}")
             return
 
         dpi = 300
