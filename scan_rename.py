@@ -41,7 +41,7 @@ def delete_temp_png(file_path):
             os.remove(file_path)
             log_message(f"temp gelöscht: {file_path}")
     except Exception as e:
-        log_message(f"Fehler beim Löschen der PNG: {e}")
+        log_message(f"Fehler beim delete temp png: {e}")
 
 
 # max leerzeichen
