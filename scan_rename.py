@@ -57,7 +57,7 @@ def sanitize_filename(filename):
 # unicorn generieren
 def get_unique_filename(file_path):
     """
-    check for another
+    rename^^
     """
     base, ext = os.path.splitext(file_path)
     counter = 1
