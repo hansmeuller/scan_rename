@@ -82,11 +82,11 @@ def extract_text_from_window(image, dpi, file_name, top_cm, height_cm):
         cropped_image = image.crop((left, top, right, bottom))
         window_image_path = f"{file_name}_window_preview.png"
         cropped_image.save(window_image_path)
-        log_message(f"Fensterbereich gespeichert: {window_image_path}")
+        log_message(f"fenster safe: {window_image_path}")
 
         cropped_array = np.array(cropped_image)
         results = reader.readtext(cropped_array)
-        log_message(f"OCR-Ergebnisse im Fenster: {results}")
+        log_message(f"ocr für fenster: {results}")
 
         delete_temp_png(window_image_path)
 
