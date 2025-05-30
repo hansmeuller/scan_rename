@@ -92,7 +92,7 @@ def extract_text_from_window(image, dpi, file_name, top_cm, height_cm):
 
         return results
     except Exception as e:
-        log_message(f"Fehler bei der Textauswertung: {e}")
+        log_message(f"Fehler texterkennung: {e}")
         return []
 
 
