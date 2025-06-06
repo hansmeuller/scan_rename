@@ -86,7 +86,7 @@ def extract_text_from_window(image, dpi, file_name, top_cm, height_cm):
 
         cropped_array = np.array(cropped_image)
         results = reader.readtext(cropped_array)
-        log_message(f"ocr für fenster: {results}")
+        log_message(f"ocr ausschnitt- fenster: {results}")
 
         delete_temp_png(window_image_path)
 
