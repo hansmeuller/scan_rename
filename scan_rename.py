@@ -120,7 +120,7 @@ def extract_case_number(results):
 
         # extraktion einleiten kw
         if any(line_text.startswith(keyword) for keyword in AKTENZEICHEN_KEYWORDS):
-            log_message(f"Keyword für Aktenzeichen gefunden: {line_text}")
+            log_message(f"keyword az: {line_text}")
 
             # 2 zeilen
             if idx + 3 < len(results):  # 3 zeilen
