@@ -109,7 +109,7 @@ def extract_sender(results):
         first_line = re.sub(ZAHLEN_REGEX, "", first_line)  # zahlen entfernen
         first_line = normalize_spacing(first_line)  # max leerzeichen
         return first_line
-    return "Unbekannter Absender"
+    return "sender nicht gefunden"
 
 
 # az gezielt extrahieren
