@@ -27,7 +27,7 @@ ZAHLEN_REGEX = r"\b\d+\b"
 OCR_CORRECTIONS = {"unaedeckte": "ungedeckte"}
 
 
-# lognachrichten mit zeitstempel
+# logs mit zeitstempel
 def log_message(message):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     with open("Logeinträge.txt", "a", encoding="utf-8") as log_file:
@@ -86,7 +86,7 @@ def extract_text_from_window(image, dpi, file_name, top_cm, height_cm):
 
         cropped_array = np.array(cropped_image)
         results = reader.readtext(cropped_array)
-        log_message(f"ocr ausschnitt- fenster: {results}")
+        log_message(f"ocr fenster: {results}")
 
         delete_temp_png(window_image_path)
 
