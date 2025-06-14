@@ -44,7 +44,7 @@ def delete_temp_png(file_path):
         log_message(f"probs beim delete temp png: {e}")
 
 
-# max leerzeichen
+# maximale leerzeichen
 def normalize_spacing(text):
     return re.sub(r"\s{2,}", " ", text).strip()
 
@@ -54,7 +54,7 @@ def sanitize_filename(filename):
     return re.sub(r"[\\/*?\"<>|]", "", filename)
 
 
-# unicorn generieren
+# unicorn generieren /einmaliger name
 def get_unique_filename(file_path):
     """
     rename^^
