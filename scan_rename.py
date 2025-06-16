@@ -173,7 +173,7 @@ def extract_creation_date(file_path):
     try:
         reader = PdfReader(file_path)
         metadata = reader.metadata
-        creation_date = metadata.get("/CreationDate", "")
+        creation_date = metadata.get("/meta", "")
         if creation_date:
             # Format anpassen: yyyymmdd
             match = re.search(r"D:(\d{4})(\d{2})(\d{2})", creation_date)
