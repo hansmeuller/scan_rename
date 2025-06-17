@@ -191,7 +191,7 @@ def process_pdf(file_path):
         file_name = os.path.basename(file_path)
         images = convert_from_path(file_path, dpi=300, first_page=1, last_page=1)
         if not images:
-            log_message(f"keine pics extrahiert in {file_path}")
+            log_message(f"nichts extrahiert in {file_path}")
             return
 
         dpi = 300
