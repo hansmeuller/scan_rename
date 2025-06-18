@@ -209,7 +209,7 @@ def process_pdf(file_path):
             # abs extrahieren
             sender_results = extract_text_from_window(image, dpi, file_name, WINDOW_TOP_CM, WINDOW_HEIGHT_CM)
             sender = extract_sender(sender_results)
-            log_message(f"Gefundener Absender in {file_path}: {sender}")
+            log_message(f"absender in {file_path}: {sender}")
 
             # betreff az extrahieren
             subject_or_case = extract_subject_or_case_number(image, dpi, file_name)
