@@ -199,7 +199,7 @@ def process_pdf(file_path):
 
         # kto erkennen
         if is_kontoauszug(image):
-            log_message(f"erkannt als Kontoauszug: {file_path}")
+            log_message(f"erkannt Kontoauszug: {file_path}")
             log_message(f"Betreff: Kontoauszug")
             sender_results = extract_text_from_window(image, dpi, file_name, WINDOW_TOP_CM, WINDOW_HEIGHT_CM)
             sender = extract_sender(sender_results)
