@@ -217,7 +217,7 @@ def process_pdf(file_path):
 
         # date extrahieren
         creation_date = extract_creation_date(file_path)
-        log_message(f"datum extrahiert: {creation_date}")
+        log_message(f"datum : {creation_date}")
 
         # dateinamen erstellen
         new_file_name = f"{sender}_{creation_date}_{subject_or_case}.pdf"
