@@ -225,7 +225,7 @@ def process_pdf(file_path):
         new_file_name = sanitize_filename(new_file_name)
         new_file_path = os.path.join(os.path.dirname(file_path), new_file_name)
 
-        # pink fluffy unicorn
+        # unicorn
         unique_file_path = get_unique_filename(new_file_path)
 
         # rename
