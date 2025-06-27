@@ -233,7 +233,7 @@ def process_pdf(file_path):
         log_message(f"umbenannt: {file_path} -> {unique_file_path}")
 
     except Exception as e:
-        log_message(f"fail bei {file_path}: {e}")
+        log_message(f"fehler bei {file_path}: {e}")
 
 
 # current
