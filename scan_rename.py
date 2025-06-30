@@ -236,7 +236,7 @@ def process_pdf(file_path):
         log_message(f"fehler bei {file_path}: {e}")
 
 
-# current
+# current folder
 def process_pdfs(folder):
     folder = os.getcwd()
     for file_name in os.listdir(folder):
