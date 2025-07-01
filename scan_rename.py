@@ -158,7 +158,7 @@ def extract_subject_or_case_number(image, dpi, file_name):
         if idx == 0:
             return line_text  # Betreff mit Leerzeichen erhalten
 
-    return "Kein Betreff"
+    return "kein betreff"
 
 
 # kto prüfen
