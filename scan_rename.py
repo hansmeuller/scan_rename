@@ -181,7 +181,7 @@ def extract_creation_date(file_path):
                 return f"{match.group(1)}{match.group(2)}{match.group(3)}"
         return "unknown date"
     except Exception as e:
-        log_message(f"Fehler metadatum: {e}")
+        log_message(f"Fehler beim metadatum: {e}")
         return "unbekannt"
 
 
